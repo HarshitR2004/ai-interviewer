@@ -1,12 +1,18 @@
-from typing import Literal
+from pydantic import BaseModel, ConfigDict, Field
 
-from pydantic import Field
+from backend.features.interview_planning.models import InterviewPlan, InterviewSettings
+from backend.features.profiles.models import CandidateProfile
 
-from backend.shared.models import Record
+
+class PreparationInputs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    job_description: str = Field(min_length=40, max_length=12000)
+    settings: InterviewSettings = Field(default_factory=InterviewSettings)
 
 
-class Status(Record):
+class Preparation(BaseModel):
     candidate_id: str
-    state: Literal["queued", "collecting", "profiling", "planning", "completed", "failed"]
-    message: str
-    warnings: list[str] = Field(default_factory=list)
+    profile: CandidateProfile
+    plan: InterviewPlan
+    settings: InterviewSettings
+    job_description: str

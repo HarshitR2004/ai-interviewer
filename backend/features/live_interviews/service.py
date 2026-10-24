@@ -1,13 +1,17 @@
 import asyncio
-import copy
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from uuid import uuid4
 
-from . import graph
-from .models import Decision, EngineError
-from .ports import PlanSource, Reasoner
-from .storage import SQLiteRepository
+from backend.common.errors import Conflict, Unavailable
+from backend.features.preparation.service import PreparationService
+
+from .models import AnswerInput, AnswerResult, AnswerTurn, Decision, PublicSession, SessionState
+from .reasoning import Reasoner
+from .sessions import SessionRegistry
+from .transitions import close, fallback, new_session, transition
 
 log = logging.getLogger(__name__)
 
@@ -15,60 +19,77 @@ log = logging.getLogger(__name__)
 class LiveInterviewService:
     def __init__(
         self,
-        repository: SQLiteRepository,
-        source: PlanSource,
+        sessions: SessionRegistry,
+        preparation: PreparationService,
         reasoner: Reasoner | None,
         *,
         clock: Callable[[], float] = time.time,
-        timeout: float = 15,
+        timeout: float = 60,
     ):
-        self.repository = repository
-        self.source = source
-        self.reasoner = reasoner
-        self.clock = clock
-        self.timeout = timeout
+        self._sessions, self._preparation, self._reasoner = sessions, preparation, reasoner
+        self._clock, self._timeout = clock, timeout
 
-    async def initialize(self):
-        await self.repository.initialize()
-        await self.repository.close_unfinished(self.clock(), restart=True)
+    @contextmanager
+    def operation(self, session_id: str) -> Iterator[SessionState]:
+        with self._sessions.operation(session_id) as state:
+            if state.status == "active" and self._clock() >= state.deadline_at:
+                close(state)
+            yield state
 
-    async def expire(self):
-        await self.repository.close_unfinished(self.clock())
+    async def create(self, candidate_id: str) -> PublicSession:
+        preparation = await self._preparation.get(candidate_id)
+        state = new_session(uuid4().hex, preparation, self._clock(), uuid4().hex)
+        self._sessions.add(state)
+        return state.public()
 
-    async def create(self, request):
-        await self.expire()
-        existing = await self.repository.create(request, None, self.clock())
-        if existing is not None:
-            return existing
-        source = await self.source.load(request.candidate_id)
-        return await self.repository.create(request, source, self.clock())
+    def get(self, session_id: str) -> PublicSession:
+        with self.operation(session_id) as state:
+            return state.public()
 
-    async def get(self, session_id):
-        await self.expire()
-        return graph.public_session(await self.repository.get(session_id))
+    def require_prompt(self, state: SessionState, prompt_id: str) -> None:
+        if state.status != "active" or self._clock() >= state.deadline_at:
+            close(state)
+            raise Conflict("Interview is no longer accepting answers.")
+        if state.current_prompt is None or state.current_prompt.id != prompt_id:
+            raise Conflict("This prompt is no longer current.")
 
-    async def answer(self, session_id, event, *, audio=False):
-        if self.reasoner is None:
-            raise EngineError(503, "Live reasoning is disabled. No answer was saved.")
-        await self.expire()
-        snapshot, existing = await self.repository.accept(
-            session_id, event, self.clock(), audio=audio
-        )
-        if existing is not None:
-            return existing
-        unavailable = False
+    async def answer(self, session_id: str, body: AnswerInput) -> AnswerResult:
+        with self.operation(session_id) as state:
+            return await self.assess_answer(state, body)
+
+    def require_reasoning(self) -> None:
+        if self._reasoner is None:
+            raise Unavailable("Live reasoning is disabled. No answer was saved.")
+
+    async def assess_answer(self, state: SessionState, body: AnswerInput) -> AnswerResult:
+        """Shared text/audio operation; caller holds the session operation guard."""
+        self.require_prompt(state, body.prompt_id)
+        self.require_reasoning()
+        assert self._reasoner is not None
+        available = True
         try:
-            decision = await asyncio.wait_for(
-                self.reasoner.assess(copy.deepcopy(snapshot), event.answer), timeout=self.timeout
+            decision = Decision.model_validate(
+                await asyncio.wait_for(
+                    self._reasoner.assess(
+                        state.model_copy(deep=True),
+                        body.answer,
+                        max(0, state.deadline_at - self._clock()),
+                    ),
+                    self._timeout,
+                )
             )
-            decision = Decision.model_validate(decision)
+        except asyncio.CancelledError:
+            raise
         except Exception as exc:
-            log.warning("Live assessment unavailable (%s)", type(exc).__name__)
-            unavailable = True
-            decision = graph.fallback(snapshot)
-        return await self.repository.commit(
-            snapshot, event.event_id, decision, self.clock(), unavailable
-        )
+            log.warning("Assessment unavailable (%s)", type(exc).__name__)
+            available = False
+            decision = fallback(state)
+        # No state mutation occurs before provider work finishes. Cancellation is safe to retry.
+        state.answers.append(AnswerTurn(question_id=state.question_id, answer=body.answer))
+        outcome = transition(state, decision, self._clock(), uuid4().hex, available)
+        return AnswerResult(session=state.public(), transition=outcome)
 
-    async def end(self, session_id, event):
-        return await self.repository.end(session_id, event, self.clock())
+    def end(self, session_id: str) -> PublicSession:
+        with self.operation(session_id) as state:
+            close(state)
+            return state.public()

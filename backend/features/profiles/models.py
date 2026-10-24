@@ -1,9 +1,8 @@
-from pydantic import Field
-
-from backend.shared.models import Record
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class Project(Record):
+class Project(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     id: str
     name: str
     purpose: str
@@ -13,7 +12,8 @@ class Project(Record):
     source_refs: list[str]
 
 
-class Persona(Record):
+class CandidateProfile(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     name: str
     background: str
     education: list[str]

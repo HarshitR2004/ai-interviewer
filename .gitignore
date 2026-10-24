@@ -5,8 +5,10 @@ sample_data/*.pdf
 __pycache__/
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
 *.egg-info/
 work/
+.vscode/
 
 # Private configuration (keep only the documented template)
 .env.*
@@ -33,3 +35,4 @@ coverage.xml
 *.wav
 *.mp3
 *.tgz
+

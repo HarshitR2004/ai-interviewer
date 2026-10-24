@@ -1,54 +1,84 @@
+"""Only Markdown and the original PDF are persisted. No generated-data sidecars."""
+
 import re
+from collections.abc import Callable
 from pathlib import Path
-from uuid import uuid4
+from threading import RLock
+from typing import TypeVar
 
-from backend.shared.files import atomic_write, write_json
+from backend.common.errors import Conflict, NotFound, Unavailable
+from backend.common.files import atomic_write, run_io
 
-from .models import Status
+from .documents import parse_plan, parse_profile, render_plan, render_profile
+from .models import Preparation
+
+T = TypeVar("T")
 
 
-class LocalStore:
+class MarkdownPreparationStore:
     def __init__(self, root: Path):
         self.root = root
-        self.root.mkdir(parents=True, exist_ok=True)
+        self._lock = RLock()
 
-    def candidate(self, candidate_id: str) -> Path:
-        if not re.fullmatch("[a-f0-9]{32}", candidate_id):
-            raise FileNotFoundError(candidate_id)
-        path = self.root / candidate_id
-        if not path.is_dir():
-            raise FileNotFoundError(candidate_id)
-        return path
+    def _path(self, candidate_id: str) -> Path:
+        if not re.fullmatch(r"[a-f0-9]{32}", candidate_id):
+            raise NotFound("Candidate not found.")
+        return self.root / candidate_id
 
-    def create(self) -> str:
-        candidate_id = uuid4().hex
-        path = self.root / candidate_id
-        for sub in ("inputs", "structured"):
-            (path / sub).mkdir(parents=True, exist_ok=True)
-        self.write_status(
-            Status(candidate_id=candidate_id, state="queued", message="Your preparation is queued.")
-        )
-        return candidate_id
+    async def _io(self, work: Callable[[], T]) -> T:
+        def locked() -> T:
+            with self._lock:
+                try:
+                    return work()
+                except FileNotFoundError as exc:
+                    raise NotFound(
+                        "Completed preparation not found; both Markdown documents are required."
+                    ) from exc
+                except OSError as exc:
+                    raise Unavailable("Preparation documents could not be read or saved.") from exc
 
-    @staticmethod
-    def write(path: Path, content: str | bytes) -> None:
-        atomic_write(path, content)
+        return await run_io(locked)
 
-    def json(self, path: Path, content: dict) -> None:
-        write_json(path, content)
+    async def create(self, preparation: Preparation, resume: bytes) -> None:
+        def write() -> None:
+            path = self._path(preparation.candidate_id)
+            if path.exists():
+                raise Conflict("Candidate already exists.")
+            path.mkdir(parents=True)
+            atomic_write(path / "resume.pdf", resume)
+            atomic_write(path / "persona.md", render_profile(preparation.profile))
+            atomic_write(
+                path / "interview-plan.md",
+                render_plan(preparation.plan, preparation.settings, preparation.job_description),
+            )
 
-    def write_status(self, status: Status) -> None:
-        self.json(self.candidate(status.candidate_id) / "status.json", status.model_dump())
+        await self._io(write)
 
-    def status(self, candidate_id: str) -> Status:
-        return Status.model_validate_json(
-            (self.candidate(candidate_id) / "status.json").read_text(encoding="utf-8")
-        )
+    async def load(self, candidate_id: str) -> Preparation:
+        def read() -> Preparation:
+            path = self._path(candidate_id)
+            profile = parse_profile((path / "persona.md").read_text(encoding="utf-8"))
+            plan, settings, jd = parse_plan(
+                (path / "interview-plan.md").read_text(encoding="utf-8"), profile
+            )
+            return Preparation(
+                candidate_id=candidate_id,
+                profile=profile,
+                plan=plan,
+                settings=settings,
+                job_description=jd,
+            )
 
-    def recover(self) -> None:
-        for path in self.root.glob("*/status.json"):
-            status = Status.model_validate_json(path.read_text(encoding="utf-8"))
-            if status.state not in {"completed", "failed"}:
-                status.state = "failed"
-                status.message = "Preparation was interrupted. Please submit again."
-                self.write_status(status)
+        return await self._io(read)
+
+    async def replace_plan(self, preparation: Preparation) -> None:
+        def write() -> None:
+            path = self._path(preparation.candidate_id)
+            if not (path / "persona.md").is_file() or not (path / "interview-plan.md").is_file():
+                raise NotFound("Completed preparation not found.")
+            atomic_write(
+                path / "interview-plan.md",
+                render_plan(preparation.plan, preparation.settings, preparation.job_description),
+            )
+
+        await self._io(write)

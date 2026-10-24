@@ -1,0 +1,67 @@
+"""Assemble the demo's concrete providers, document store, and session registry."""
+
+import asyncio
+from dataclasses import dataclass
+
+from backend.features.interview_planning.service import InterviewService
+from backend.features.live_interviews.audio_service import AudioInterviewService
+from backend.features.live_interviews.reasoning import ModelReasoner
+from backend.features.live_interviews.service import LiveInterviewService
+from backend.features.live_interviews.sessions import SessionRegistry
+from backend.features.preparation.service import PreparationService
+from backend.features.preparation.storage import MarkdownPreparationStore
+from backend.features.profiles.service import ProfileService
+from backend.features.resume_ingestion.pdf_extractor import PdfExtractor
+from backend.features.resume_ingestion.service import ResumeIngestionService
+from backend.integrations.llm.client import ChatCompletionsClient
+from backend.integrations.llm.structured_generation import StructuredGeneration
+from backend.integrations.speech.client import SpeechClient
+from backend.settings import Settings
+
+
+@dataclass
+class Services:
+    preparation: PreparationService
+    live: LiveInterviewService
+    audio: AudioInterviewService
+    model: ChatCompletionsClient | None = None
+    speech: SpeechClient | None = None
+
+    async def aclose(self) -> None:
+        await asyncio.gather(
+            *(client.aclose() for client in (self.model, self.speech) if client is not None)
+        )
+
+
+def build_services(settings: Settings) -> Services:
+    client = ChatCompletionsClient(settings.llm_base_url, settings.llm_model, settings.llm_api_key)
+    generator = StructuredGeneration(client)
+    preparation = PreparationService(
+        MarkdownPreparationStore(settings.data_dir / "demo/candidates"),
+        ProfileService(generator),
+        InterviewService(generator),
+        ResumeIngestionService(PdfExtractor()),
+    )
+    live = LiveInterviewService(
+        SessionRegistry(),
+        preparation,
+        ModelReasoner(client, timeout=settings.live_reasoning_timeout_sec)
+        if settings.live_reasoning_enabled
+        else None,
+        timeout=settings.live_reasoning_timeout_sec,
+    )
+    speech = (
+        SpeechClient(
+            settings.stt_base_url,
+            settings.tts_base_url,
+            stt_api_key=settings.stt_api_key,
+            tts_api_key=settings.tts_api_key,
+            timeout=settings.speech_timeout_sec,
+        )
+        if settings.speech_enabled
+        else None
+    )
+    audio = AudioInterviewService(
+        live, speech if settings.stt_base_url else None, speech if settings.tts_base_url else None
+    )
+    return Services(preparation, live, audio, client, speech)
