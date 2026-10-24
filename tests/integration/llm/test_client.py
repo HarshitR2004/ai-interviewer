@@ -4,7 +4,7 @@ import pytest
 from backend.common.errors import Unavailable
 from backend.integrations.llm.client import ChatCompletionsClient
 from backend.integrations.llm.structured_generation import StructuredGeneration
-from backend.modules.profiles.models import CandidateProfile
+from backend.modules.pre_interview.profiles.models import CandidateProfile
 
 
 async def test_model_repairs_once(monkeypatch, persona):

@@ -35,6 +35,8 @@ def test_dependency_boundaries():
                 ), (path, module)
             if relative.parts[0] == "modules":
                 assert not module.startswith(("backend.api", "backend.bootstrap")), (path, module)
+                if relative.parts[1] == "pre_interview":
+                    assert not module.startswith("backend.modules.live_interviews"), (path, module)
                 if path.stem in {"models", "validation", "transitions"}:
                     assert not module.startswith(
                         (
@@ -42,7 +44,7 @@ def test_dependency_boundaries():
                             "httpx",
                             "sqlite3",
                             "pathlib",
-                            "backend.modules.preparation.documents",
+                            "backend.modules.pre_interview.preparation.documents",
                         )
                     ), (path, module)
                 if path.name == "service.py":
@@ -56,7 +58,7 @@ def test_no_retired_persistence_or_frontend():
         "runtime",
         "api/schemas",
         "modules/live_interviews/adapters",
-        "modules/preparation/adapters",
+        "modules/pre_interview/preparation/adapters",
     ]:
         assert not list((BACKEND / name).rglob("*.py"))
     for path in BACKEND.rglob("*.py"):
@@ -72,3 +74,9 @@ def test_relative_import_resolution():
     assert "backend.modules.live_interviews.models" in set(
         imports(BACKEND / "modules/live_interviews/service.py")
     )
+
+
+def test_pre_interview_modules_have_one_location():
+    for name in ("interview_planning", "preparation", "profiles", "resume_ingestion"):
+        assert (BACKEND / "modules/pre_interview" / name / "__init__.py").is_file()
+        assert not (BACKEND / "modules" / name).exists()

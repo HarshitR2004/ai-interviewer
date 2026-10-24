@@ -12,13 +12,19 @@ service, then read the feature's models and domain rules before its I/O implemen
 | Package | Owns |
 | --- | --- |
 | api | HTTP parsing, single-file uploads, responses, error-to-status mapping |
-| modules/resume_ingestion | Filename/MIME checks and basic PDF text extraction |
-| modules/profiles | Profile models, model instructions, profile validation |
-| modules/interview_planning | Competencies, generation schema, timing, plan validation |
-| modules/preparation | Synchronous workflow, Markdown codecs, preparation store port |
+| modules/pre_interview/resume_ingestion | Filename/MIME checks and basic PDF text extraction |
+| modules/pre_interview/profiles | Profile models, model instructions, profile validation |
+| modules/pre_interview/interview_planning | Competencies, generation schema, timing, plan validation |
+| modules/pre_interview/preparation | Synchronous workflow, Markdown codecs, preparation store port |
 | modules/live_interviews | Registry, typed state, reasoning, transitions, audio orchestration |
 | integrations | External model/speech interfaces and HTTP implementations |
 | common | Application errors, Markdown primitives, atomic file helpers |
+
+`modules/pre_interview` groups the work completed before a live session. Its `preparation`
+service coordinates resume ingestion, profile generation, planning, and persistence; each
+submodule keeps its own implementation. Live interviews consume saved preparation models
+and the preparation service, while pre-interview code has no dependency on live interviews.
+The stage package adds no wrapper service or duplicate entry points.
 
 `service.py` coordinates a use case. `models.py` defines typed data. `ports.py` defines
 required behavior without choosing an implementation. Here the preparation-store port

@@ -1,6 +1,6 @@
 import pytest
 
-from backend.modules.profiles.validation import validate_profile
+from backend.modules.pre_interview.profiles.validation import validate_profile
 
 
 @pytest.mark.parametrize("problem", ["duplicate_id", "source"])

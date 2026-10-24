@@ -1,8 +1,8 @@
 import pytest
 
 from backend.common.markdown import DocumentFormatError
-from backend.modules.interview_planning.models import InterviewSettings
-from backend.modules.preparation.documents import (
+from backend.modules.pre_interview.interview_planning.models import InterviewSettings
+from backend.modules.pre_interview.preparation.documents import (
     parse_plan,
     parse_profile,
     render_plan,

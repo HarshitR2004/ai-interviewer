@@ -1,13 +1,13 @@
 import pytest
 from pydantic import ValidationError
 
-from backend.modules.interview_planning.models import InterviewPlan, InterviewSettings
-from backend.modules.interview_planning.planning import (
+from backend.modules.pre_interview.interview_planning.models import InterviewPlan, InterviewSettings
+from backend.modules.pre_interview.interview_planning.planning import (
     allocate_time,
     explicit_competencies,
     planning_schema,
 )
-from backend.modules.interview_planning.validation import validate_plan
+from backend.modules.pre_interview.interview_planning.validation import validate_plan
 
 
 @pytest.mark.parametrize("problem", ["duration", "coverage", "reference", "duplicate"])

@@ -1,4 +1,4 @@
-from backend.modules.profiles.models import CandidateProfile
+from backend.modules.pre_interview.profiles.models import CandidateProfile
 
 from .models import InterviewPlan, InterviewSettings
 

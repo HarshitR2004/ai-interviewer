@@ -6,7 +6,7 @@ from backend.main import create_app
 from backend.modules.live_interviews.audio_service import AudioInterviewService
 from backend.modules.live_interviews.service import LiveInterviewService
 from backend.modules.live_interviews.sessions import SessionRegistry
-from backend.modules.preparation.storage import MarkdownPreparationStore
+from backend.modules.pre_interview.preparation.storage import MarkdownPreparationStore
 from backend.settings import Settings
 from tests.factories import wav_bytes
 from tests.fakes import FakeModel, FakeReasoner, FakeSpeech, make_preparation
@@ -130,7 +130,7 @@ def test_multiple_files_and_private_validation(tmp_path, persona, plan, resume_p
 
 
 def test_oversized_pdf_is_rejected(tmp_path, persona, plan):
-    from backend.modules.resume_ingestion.pdf_extractor import MAX_PDF_BYTES
+    from backend.modules.pre_interview.resume_ingestion.pdf_extractor import MAX_PDF_BYTES
 
     with client_for(tmp_path, persona, plan) as client:
         result = client.post(

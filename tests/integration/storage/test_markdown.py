@@ -1,9 +1,9 @@
 import pytest
 
 from backend.common.errors import NotFound, Unavailable
-from backend.modules.preparation.models import PreparationInputs
-from backend.modules.preparation.storage import MarkdownPreparationStore
-from backend.modules.resume_ingestion.service import ResumeUpload
+from backend.modules.pre_interview.preparation.models import PreparationInputs
+from backend.modules.pre_interview.preparation.storage import MarkdownPreparationStore
+from backend.modules.pre_interview.resume_ingestion.service import ResumeUpload
 from tests.factories import preparation
 from tests.fakes import FakeModel, make_preparation
 
@@ -49,7 +49,7 @@ async def test_prepare_reload_replan_and_keep_legacy_data(tmp_path, persona, pla
 
 
 async def test_atomic_replacement_failure_keeps_old_document(tmp_path, monkeypatch):
-    from backend.modules.preparation import storage
+    from backend.modules.pre_interview.preparation import storage
 
     store = MarkdownPreparationStore(tmp_path)
     original = preparation()
@@ -78,7 +78,7 @@ async def test_incomplete_preparation_cannot_be_loaded(tmp_path, missing):
 
 
 async def test_initial_write_failure_is_not_reported_as_completed(tmp_path, monkeypatch):
-    from backend.modules.preparation import storage
+    from backend.modules.pre_interview.preparation import storage
 
     real = storage.atomic_write
 

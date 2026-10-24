@@ -1,5 +1,5 @@
-from backend.modules.interview_planning.models import RoleRequirements
-from backend.modules.profiles.models import CandidateProfile
+from backend.modules.pre_interview.interview_planning.models import RoleRequirements
+from backend.modules.pre_interview.profiles.models import CandidateProfile
 
 
 class FakeModel:
@@ -83,11 +83,11 @@ class FakeSpeech:
 
 
 def make_preparation(store, model):
-    from backend.modules.interview_planning.service import InterviewService
-    from backend.modules.preparation.service import PreparationService
-    from backend.modules.profiles.service import ProfileService
-    from backend.modules.resume_ingestion.pdf_extractor import PdfExtractor
-    from backend.modules.resume_ingestion.service import ResumeIngestionService
+    from backend.modules.pre_interview.interview_planning.service import InterviewService
+    from backend.modules.pre_interview.preparation.service import PreparationService
+    from backend.modules.pre_interview.profiles.service import ProfileService
+    from backend.modules.pre_interview.resume_ingestion.pdf_extractor import PdfExtractor
+    from backend.modules.pre_interview.resume_ingestion.service import ResumeIngestionService
 
     return PreparationService(
         store,

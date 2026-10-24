@@ -4,7 +4,7 @@ import pytest
 from pypdf import PdfWriter
 
 from backend.common.errors import InvalidInput
-from backend.modules.resume_ingestion.pdf_extractor import extract_resume
+from backend.modules.pre_interview.resume_ingestion.pdf_extractor import extract_resume
 
 
 def test_pdf_extraction(resume_pdf):
