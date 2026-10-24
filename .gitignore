@@ -1,0 +1,35 @@
+.venv/
+.env
+data/
+sample_data/*.pdf
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+work/
+
+# Private configuration (keep only the documented template)
+.env.*
+!.env.example
+*.log
+*.sqlite
+*.sqlite3
+*.db
+*-wal
+*-shm
+*-journal
+# Build and verification artifacts
+build/
+dist/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+# Downloaded models and recordings
+*.onnx
+*.safetensors
+*.pt
+*.pth
+*.wav
+*.mp3
+*.tgz
