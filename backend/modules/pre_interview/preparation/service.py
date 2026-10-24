@@ -3,10 +3,7 @@ from uuid import uuid4
 from backend.common.errors import Conflict
 from backend.modules.pre_interview.interview_planning.service import InterviewService
 from backend.modules.pre_interview.profiles.service import ProfileService
-from backend.modules.pre_interview.resume_ingestion.service import (
-    ResumeIngestionService,
-    ResumeUpload,
-)
+from backend.modules.pre_interview.resume_ingestion.pdf_extractor import PdfExtractor, ResumeUpload
 
 from .models import Preparation, PreparationInputs
 from .ports import PreparationStore
@@ -18,7 +15,7 @@ class PreparationService:
         store: PreparationStore,
         profiles: ProfileService,
         interviews: InterviewService,
-        ingestion: ResumeIngestionService,
+        ingestion: PdfExtractor,
     ):
         self._store, self._profiles = store, profiles
         self._interviews, self._ingestion = interviews, ingestion
@@ -26,7 +23,7 @@ class PreparationService:
 
     async def submit(self, upload: ResumeUpload, inputs: PreparationInputs) -> Preparation:
         # Extract the resume, generate both artifacts, and persist before reporting success.
-        text = await self._ingestion.extract(upload)
+        text = await self._ingestion.ingest(upload)
         profile = await self._profiles.create(text)
         plan = await self._interviews.create(profile, inputs.job_description, inputs.settings)
         result = Preparation(

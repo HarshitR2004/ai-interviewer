@@ -1,8 +1,0 @@
-Example Candidate - Synthetic Resume
-Python backend developer
-Education: BSc Computer Science, Example University, 2024
-Skills: Python, FastAPI, PostgreSQL, pytest, Git
-Project: Booking API
-Built a slot-booking API using Python and PostgreSQL. Added unique constraints
-and automated tests for duplicate booking attempts.
-This resume is fictional and contains no personal contact information.

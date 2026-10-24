@@ -4,11 +4,14 @@ import pytest
 from pypdf import PdfWriter
 
 from backend.common.errors import InvalidInput
-from backend.modules.pre_interview.resume_ingestion.pdf_extractor import extract_resume
+from backend.modules.pre_interview.resume_ingestion.pdf_extractor import PdfExtractor
+
+
+extractor = PdfExtractor()
 
 
 def test_pdf_extraction(resume_pdf):
-    assert "Python backend developer" in extract_resume(resume_pdf)
+    assert "Python backend developer" in extractor.extract(resume_pdf)
 
 
 def test_scanned_and_invalid_pdfs():
@@ -18,7 +21,7 @@ def test_scanned_and_invalid_pdfs():
     writer.write(output)
     for payload in (b"bad content", output.getvalue()):
         with pytest.raises(InvalidInput):
-            extract_resume(payload)
+            extractor.extract(payload)
 
 
 def modified_pdf(resume_pdf, change):
@@ -42,12 +45,12 @@ def test_https_project_links_remain_allowed(resume_pdf):
             annotation=Link(rect=(0, 0, 100, 20), url="https://github.com/example/project"),
         ),
     )
-    assert "Booking API" in extract_resume(payload)
+    assert "Booking API" in extractor.extract(payload)
 
 
 def test_rejects_encrypted_and_excessive_page_pdfs(resume_pdf):
     with pytest.raises(InvalidInput, match="password"):
-        extract_resume(
+        extractor.extract(
             modified_pdf(resume_pdf, lambda writer: writer.encrypt("synthetic-password"))
         )
 
@@ -56,7 +59,7 @@ def test_rejects_encrypted_and_excessive_page_pdfs(resume_pdf):
             writer.add_blank_page(612, 792)
 
     with pytest.raises(InvalidInput, match="20 pages"):
-        extract_resume(modified_pdf(resume_pdf, many_pages))
+        extractor.extract(modified_pdf(resume_pdf, many_pages))
 
 
 @pytest.mark.parametrize(
@@ -71,7 +74,7 @@ def test_rejects_encrypted_and_excessive_page_pdfs(resume_pdf):
 )
 def test_rejects_spoofed_or_oversized_files(payload):
     with pytest.raises(InvalidInput):
-        extract_resume(payload)
+        extractor.extract(payload)
 
 
 def test_rejects_excessive_text(resume_pdf):
@@ -83,4 +86,4 @@ def test_rejects_excessive_text(resume_pdf):
         writer.pages[0][NameObject("/Contents")] = writer._add_object(stream)
 
     with pytest.raises(InvalidInput, match="too long"):
-        extract_resume(modified_pdf(resume_pdf, long_text))
+        extractor.extract(modified_pdf(resume_pdf, long_text))

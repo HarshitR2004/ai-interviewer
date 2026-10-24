@@ -15,7 +15,6 @@ from backend.modules.pre_interview.preparation.service import PreparationService
 from backend.modules.pre_interview.preparation.storage import MarkdownPreparationStore
 from backend.modules.pre_interview.profiles.service import ProfileService
 from backend.modules.pre_interview.resume_ingestion.pdf_extractor import PdfExtractor
-from backend.modules.pre_interview.resume_ingestion.service import ResumeIngestionService
 from backend.settings import Settings
 
 
@@ -42,7 +41,7 @@ def build_services(settings: Settings) -> Services:
         MarkdownPreparationStore(settings.data_dir / "demo/candidates"),
         ProfileService(generator),
         InterviewService(generator),
-        ResumeIngestionService(PdfExtractor()),
+        PdfExtractor(),
     )
     live = LiveInterviewService(
         SessionRegistry(),

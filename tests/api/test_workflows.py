@@ -7,7 +7,6 @@ from backend.modules.live_interviews.audio_service import AudioInterviewService
 from backend.modules.live_interviews.service import LiveInterviewService
 from backend.modules.live_interviews.sessions import SessionRegistry
 from backend.modules.pre_interview.preparation.storage import MarkdownPreparationStore
-from backend.settings import Settings
 from tests.factories import wav_bytes
 from tests.fakes import FakeModel, FakeReasoner, FakeSpeech, make_preparation
 
@@ -15,17 +14,12 @@ JD = "Build Python APIs with database design and testing."
 
 
 def client_for(tmp_path, persona, plan, speech=None, reasoner=True):
-    def factory(config):
-        prep = make_preparation(
-            MarkdownPreparationStore(config.data_dir / "demo/candidates"), FakeModel(persona, plan)
-        )
-        live = LiveInterviewService(SessionRegistry(), prep, FakeReasoner() if reasoner else None)
-        return Services(prep, live, AudioInterviewService(live, speech, speech))
-
-    settings = Settings(
-        _env_file=None, data_dir=tmp_path, llm_base_url="https://llm.example/v1", llm_model="test"
+    prep = make_preparation(
+        MarkdownPreparationStore(tmp_path / "demo/candidates"), FakeModel(persona, plan)
     )
-    return TestClient(create_app(settings, service_factory=factory))
+    live = LiveInterviewService(SessionRegistry(), prep, FakeReasoner() if reasoner else None)
+    services = Services(prep, live, AudioInterviewService(live, speech, speech))
+    return TestClient(create_app(services))
 
 
 def prepare(client, resume_pdf):

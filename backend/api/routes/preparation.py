@@ -7,8 +7,10 @@ from backend.api.errors import ErrorResponse
 from backend.common.errors import InvalidInput
 from backend.modules.pre_interview.preparation.models import Preparation, PreparationInputs
 from backend.modules.pre_interview.preparation.service import PreparationService
-from backend.modules.pre_interview.resume_ingestion.pdf_extractor import MAX_PDF_BYTES
-from backend.modules.pre_interview.resume_ingestion.service import ResumeUpload
+from backend.modules.pre_interview.resume_ingestion.pdf_extractor import (
+    MAX_PDF_BYTES,
+    ResumeUpload,
+)
 
 router = APIRouter(
     prefix="/api/candidates",

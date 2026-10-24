@@ -3,7 +3,7 @@ import pytest
 from backend.common.errors import NotFound, Unavailable
 from backend.modules.pre_interview.preparation.models import PreparationInputs
 from backend.modules.pre_interview.preparation.storage import MarkdownPreparationStore
-from backend.modules.pre_interview.resume_ingestion.service import ResumeUpload
+from backend.modules.pre_interview.resume_ingestion.pdf_extractor import ResumeUpload
 from tests.factories import preparation
 from tests.fakes import FakeModel, make_preparation
 

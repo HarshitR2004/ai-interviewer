@@ -36,3 +36,5 @@ coverage.xml
 *.mp3
 *.tgz
 
+sample_data/
+docs/

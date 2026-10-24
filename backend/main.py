@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -10,22 +10,21 @@ from backend.bootstrap import Services, build_services
 from backend.settings import Settings
 
 
-def create_app(
-    settings: Settings | None = None,
-    *,
-    service_factory: Callable[[Settings], Services] = build_services,
-) -> FastAPI:
-    @asynccontextmanager
-    # Build the API with injectable services and shared error handling.
-    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        # Own provider resources for the lifetime of this application instance.
-        services = service_factory(settings or Settings.model_validate({}))
-        app.state.services = services
-        try:
-            yield
-        finally:
-            await services.aclose()
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # Create demo services once at startup and close provider clients on shutdown.
+    services = app.state.services
+    if services is None:
+        services = build_services(Settings.model_validate({}))
+    app.state.services = services
+    try:
+        yield
+    finally:
+        await services.aclose()
 
+
+def create_app(services: Services | None = None) -> FastAPI:
+    # Tests can supply ready-made services without changing the startup procedure.
     app = FastAPI(
         title="AI Interviewer Demo API",
         version="3.0.0",
@@ -33,6 +32,7 @@ def create_app(
         redoc_url=None,
         lifespan=lifespan,
     )
+    app.state.services = services
     install_error_handlers(app)
     app.include_router(preparation_router)
     app.include_router(live_router)

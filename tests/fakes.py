@@ -87,13 +87,12 @@ def make_preparation(store, model):
     from backend.modules.pre_interview.preparation.service import PreparationService
     from backend.modules.pre_interview.profiles.service import ProfileService
     from backend.modules.pre_interview.resume_ingestion.pdf_extractor import PdfExtractor
-    from backend.modules.pre_interview.resume_ingestion.service import ResumeIngestionService
 
     return PreparationService(
         store,
         ProfileService(model),
         InterviewService(model),
-        ResumeIngestionService(PdfExtractor()),
+        PdfExtractor(),
     )
 
 
