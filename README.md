@@ -45,8 +45,8 @@ Set `SPEECH_ENABLED=true` and `STT_BASE_URL` and/or `TTS_BASE_URL`, with optiona
 keys. STT accepts multipart WAV at `POST /transcribe` and returns `{"text":"..."}`.
 TTS accepts `{"text":"..."}` at `POST /synthesize`, returning 16-bit PCM WAV.
 Provider services are user-managed. Resume text/answers go to the configured model;
-audio/text goes to configured speech providers. PDF subprocess isolation, complexity
-limits, and timeouts remain in place; they are not an antivirus or OS sandbox.
+audio/text goes to configured speech providers. Resume uploads use basic filename/type,
+10 MiB size, PDF readability, password, page-count, and extracted-text checks.
 
 ## Verify
 

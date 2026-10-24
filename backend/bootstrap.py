@@ -3,19 +3,19 @@
 import asyncio
 from dataclasses import dataclass
 
-from backend.features.interview_planning.service import InterviewService
-from backend.features.live_interviews.audio_service import AudioInterviewService
-from backend.features.live_interviews.reasoning import ModelReasoner
-from backend.features.live_interviews.service import LiveInterviewService
-from backend.features.live_interviews.sessions import SessionRegistry
-from backend.features.preparation.service import PreparationService
-from backend.features.preparation.storage import MarkdownPreparationStore
-from backend.features.profiles.service import ProfileService
-from backend.features.resume_ingestion.pdf_extractor import PdfExtractor
-from backend.features.resume_ingestion.service import ResumeIngestionService
 from backend.integrations.llm.client import ChatCompletionsClient
 from backend.integrations.llm.structured_generation import StructuredGeneration
 from backend.integrations.speech.client import SpeechClient
+from backend.modules.interview_planning.service import InterviewService
+from backend.modules.live_interviews.audio_service import AudioInterviewService
+from backend.modules.live_interviews.reasoning import ModelReasoner
+from backend.modules.live_interviews.service import LiveInterviewService
+from backend.modules.live_interviews.sessions import SessionRegistry
+from backend.modules.preparation.service import PreparationService
+from backend.modules.preparation.storage import MarkdownPreparationStore
+from backend.modules.profiles.service import ProfileService
+from backend.modules.resume_ingestion.pdf_extractor import PdfExtractor
+from backend.modules.resume_ingestion.service import ResumeIngestionService
 from backend.settings import Settings
 
 

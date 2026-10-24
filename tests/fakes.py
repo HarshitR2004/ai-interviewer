@@ -1,5 +1,5 @@
-from backend.features.interview_planning.models import RoleRequirements
-from backend.features.profiles.models import CandidateProfile
+from backend.modules.interview_planning.models import RoleRequirements
+from backend.modules.profiles.models import CandidateProfile
 
 
 class FakeModel:
@@ -43,7 +43,7 @@ class FakeReasoner:
         self.action = action
 
     async def assess(self, snapshot, answer, remaining_seconds):
-        from backend.features.live_interviews.models import Decision
+        from backend.modules.live_interviews.models import Decision
 
         self.calls += 1
         return Decision(action=self.action, next_question="Explain your reasoning more clearly.")
@@ -61,7 +61,7 @@ class BlockingReasoner(FakeReasoner):
         self.calls += 1
         self.started.set()
         await self.release.wait()
-        from backend.features.live_interviews.models import Decision
+        from backend.modules.live_interviews.models import Decision
 
         return Decision(action=self.action, next_question="Explain your reasoning more clearly.")
 
@@ -83,11 +83,11 @@ class FakeSpeech:
 
 
 def make_preparation(store, model):
-    from backend.features.interview_planning.service import InterviewService
-    from backend.features.preparation.service import PreparationService
-    from backend.features.profiles.service import ProfileService
-    from backend.features.resume_ingestion.pdf_extractor import PdfExtractor
-    from backend.features.resume_ingestion.service import ResumeIngestionService
+    from backend.modules.interview_planning.service import InterviewService
+    from backend.modules.preparation.service import PreparationService
+    from backend.modules.profiles.service import ProfileService
+    from backend.modules.resume_ingestion.pdf_extractor import PdfExtractor
+    from backend.modules.resume_ingestion.service import ResumeIngestionService
 
     return PreparationService(
         store,

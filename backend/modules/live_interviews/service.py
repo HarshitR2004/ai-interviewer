@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from uuid import uuid4
 
 from backend.common.errors import Conflict, Unavailable
-from backend.features.preparation.service import PreparationService
+from backend.modules.preparation.service import PreparationService
 
 from .models import AnswerInput, AnswerResult, AnswerTurn, Decision, PublicSession, SessionState
 from .reasoning import Reasoner

@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
-from backend.features.profiles.models import CandidateProfile
 from backend.integrations.llm.contracts import StructuredGenerator
+from backend.modules.profiles.models import CandidateProfile
 
 from .models import InterviewPlan, InterviewSettings, RoleRequirements
 from .planning import allocate_time, as_interview, explicit_competencies, planning_schema

@@ -6,7 +6,7 @@ or multipart uploads; saved generated documents use Markdown only.
 ## Preparation
 
 `POST /api/candidates`: multipart `resume` (exactly one PDF up to 10 MiB),
-`job_description` (40–12,000 characters), `duration` (15–120, default 45), `seniority`
+`job_description` (40â€“12,000 characters), `duration` (15â€“120, default 45), `seniority`
 (junior/mid/senior, default junior). Every interview mixes technical and project questions;
 the LLM chooses the balance from the role requirements and candidate context.
 The request waits for extraction, generation, validation, and persistence. HTTP 201 returns
@@ -68,14 +68,15 @@ replacement IDs. Transcription and assessment hold the same session guard.
 
 `GET /api/live-sessions/{session_id}/prompt/audio?prompt_id=...` returns `audio/wav`,
 Cache-Control: no-store, and X-Prompt-ID. Synthesis holds the guard and rechecks the
-deadline after the provider returns. WAV is 16-bit PCM, mono/stereo, 8–48 kHz, up to
+deadline after the provider returns. WAV is 16-bit PCM, mono/stereo, 8â€“48 kHz, up to
 120 seconds and 12 MiB. Disabled capabilities return 503.
 
 ## Errors and restart
 
 Expected errors use `{"detail":"safe explanation"}`: 422 invalid input/document, 404
 missing preparation/session, 409 busy/conflict/closed, 503 provider/storage unavailable.
-Resume middleware also returns 400, 408, 413, and 429 for bounded-upload failures.
+Resume validation returns 422 for invalid file metadata, oversized files, unreadable PDFs,
+password protection, or page/text limits.
 No processing receipts, recovery statuses, schema versions, or concurrency counters appear.
 
 Restart loses live sessions. Preparations remain reloadable from Markdown, and a new

@@ -3,10 +3,10 @@ import asyncio
 import pytest
 
 from backend.common.errors import Conflict, NotFound, Unavailable
-from backend.features.live_interviews.audio_service import AudioInterviewService
-from backend.features.live_interviews.models import AnswerInput
-from backend.features.live_interviews.service import LiveInterviewService
-from backend.features.live_interviews.sessions import SessionRegistry
+from backend.modules.live_interviews.audio_service import AudioInterviewService
+from backend.modules.live_interviews.models import AnswerInput
+from backend.modules.live_interviews.service import LiveInterviewService
+from backend.modules.live_interviews.sessions import SessionRegistry
 from tests.factories import preparation, wav_bytes
 from tests.fakes import BlockingReasoner, FakePreparation, FakeReasoner, FakeSpeech
 

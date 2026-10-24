@@ -4,14 +4,14 @@ from fastapi import APIRouter, Depends, File, Form, Response, UploadFile
 
 from backend.api.dependencies import audio_service, live_service
 from backend.api.errors import ErrorResponse
-from backend.features.live_interviews.audio_service import AudioInterviewService
-from backend.features.live_interviews.models import (
+from backend.modules.live_interviews.audio_service import AudioInterviewService
+from backend.modules.live_interviews.models import (
     AnswerInput,
     AnswerResult,
     CreateSession,
     PublicSession,
 )
-from backend.features.live_interviews.service import LiveInterviewService
+from backend.modules.live_interviews.service import LiveInterviewService
 
 router = APIRouter(
     prefix="/api/live-sessions",

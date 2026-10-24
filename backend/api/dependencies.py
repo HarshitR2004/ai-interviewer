@@ -3,9 +3,9 @@ from typing import Annotated, cast
 from fastapi import Depends, Request
 
 from backend.bootstrap import Services
-from backend.features.live_interviews.audio_service import AudioInterviewService
-from backend.features.live_interviews.service import LiveInterviewService
-from backend.features.preparation.service import PreparationService
+from backend.modules.live_interviews.audio_service import AudioInterviewService
+from backend.modules.live_interviews.service import LiveInterviewService
+from backend.modules.preparation.service import PreparationService
 
 
 def services(request: Request) -> Services:

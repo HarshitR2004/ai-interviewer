@@ -11,12 +11,12 @@ service, then read the feature's models and domain rules before its I/O implemen
 
 | Package | Owns |
 | --- | --- |
-| api | HTTP parsing, bounded uploads, responses, error-to-status mapping |
-| features/resume_ingestion | Filename/MIME checks and isolated PDF extraction |
-| features/profiles | Profile models, model instructions, profile validation |
-| features/interview_planning | Competencies, generation schema, timing, plan validation |
-| features/preparation | Synchronous workflow, Markdown codecs, preparation store port |
-| features/live_interviews | Registry, typed state, reasoning, transitions, audio orchestration |
+| api | HTTP parsing, single-file uploads, responses, error-to-status mapping |
+| modules/resume_ingestion | Filename/MIME checks and basic PDF text extraction |
+| modules/profiles | Profile models, model instructions, profile validation |
+| modules/interview_planning | Competencies, generation schema, timing, plan validation |
+| modules/preparation | Synchronous workflow, Markdown codecs, preparation store port |
+| modules/live_interviews | Registry, typed state, reasoning, transitions, audio orchestration |
 | integrations | External model/speech interfaces and HTTP implementations |
 | common | Application errors, Markdown primitives, atomic file helpers |
 
@@ -28,17 +28,16 @@ because the demo has neither durable jobs nor a live database.
 
 ## 2. Construction and lifecycle
 
-`create_app(settings, service_factory=build_services)` installs routes, error handlers,
-and resume upload middleware. Its small lifespan builds a Services container, attaches it
+`create_app(settings, service_factory=build_services)` installs routes and error handlers. Its small lifespan builds a Services container, attaches it
 to app.state, and closes model/speech clients on shutdown. No startup lock, recovery scan,
 or background watcher runs. Merely starting the server does not create candidate files.
 
 ```text
-ChatCompletionsClient → StructuredGeneration → ProfileService / InterviewService
-                    └──────────────────────→ ModelReasoner
-MarkdownPreparationStore + profile/planning/ingestion → PreparationService
-SessionRegistry + PreparationService + optional reasoner → LiveInterviewService
-LiveInterviewService + optional transcriber/synthesizer → AudioInterviewService
+ChatCompletionsClient â†’ StructuredGeneration â†’ ProfileService / InterviewService
+                    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â†’ ModelReasoner
+MarkdownPreparationStore + profile/planning/ingestion â†’ PreparationService
+SessionRegistry + PreparationService + optional reasoner â†’ LiveInterviewService
+LiveInterviewService + optional transcriber/synthesizer â†’ AudioInterviewService
 ```
 
 `settings.py` reads environment/.env configuration and validates endpoint URLs. Relative
@@ -50,7 +49,8 @@ are separately enabled. Clients are reusable HTTPX clients with trust_env=False.
 
 1. POST /api/candidates parses one multipart PDF and interview settings.
 2. ResumeIngestionService validates filename/type, then invokes the extractor in a thread.
-3. PdfExtractor sends bytes to a bounded subprocess and receives extracted text.
+3. PdfExtractor validates size, PDF readability, password protection, and page/text limits,
+   then returns extracted text using pypdf.
 4. ProfileService generates and validates a CandidateProfile.
 5. InterviewService determines competencies, generates sections, normalizes time, and validates.
 6. PreparationService constructs a Preparation with a new candidate ID.
@@ -83,9 +83,9 @@ then distributes remaining time by weights and largest fractional remainders.
 
 ```text
 DATA_DIR/demo/candidates/<id>/
-├── resume.pdf
-├── persona.md
-└── interview-plan.md
+â”œâ”€â”€ resume.pdf
+â”œâ”€â”€ persona.md
+â””â”€â”€ interview-plan.md
 ```
 
 `preparation/documents.py` maps typed fields to the format documented in
@@ -171,7 +171,7 @@ no byte fingerprints, audio receipts, or replacement IDs.
 Prompt synthesis also holds the guard, and checks the deadline after TTS returns. Other
 operations cannot change the prompt during synthesis. Invalid/expired prompts conflict.
 The SpeechClient adapter validates WAV, caps streamed responses, and maps provider failures
-to safe errors. Audio is 16-bit PCM, mono/stereo, 8–48 kHz, up to 120 seconds and 12 MiB.
+to safe errors. Audio is 16-bit PCM, mono/stereo, 8â€“48 kHz, up to 120 seconds and 12 MiB.
 
 ChatCompletionsClient returns validated response text. StructuredGeneration parses that
 text against the required Pydantic schema and applies domain validation. One invalid output
@@ -179,11 +179,10 @@ allows one repair request; transport failures are not retried. Live reasoning us
 timeout and fallback. Request metadata/version plumbing and the standalone evaluator runner
 have been removed. JSON remains at these communication boundaries, not in preparation files.
 
-PDF extraction still uses JSON over subprocess stdin/stdout as a transport envelope; no
-JSON document is saved. Filename/MIME, PDF envelope, unsafe object/action, page, decompression,
-text-size, and timeout protections remain. The resume request middleware is endpoint-specific;
-audio has a bounded file read after multipart parsing. POSIX worker resource limits remain
-platform-specific. These are containment measures rather than a malware guarantee.
+PDF extraction runs in a worker thread using pypdf. The route reads at most 10 MiB plus
+one byte; the extractor owns the file-size check. Filename/type, readable-text, password,
+page-count, and text-length checks provide basic input validation. There is no custom upload
+middleware, subprocess worker, or PDF object scanner.
 
 ## 8. Tests and extension points
 

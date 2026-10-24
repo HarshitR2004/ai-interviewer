@@ -5,9 +5,10 @@ from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from backend.api.dependencies import preparation_service
 from backend.api.errors import ErrorResponse
 from backend.common.errors import InvalidInput
-from backend.features.preparation.models import Preparation, PreparationInputs
-from backend.features.preparation.service import PreparationService
-from backend.features.resume_ingestion.service import ResumeUpload
+from backend.modules.preparation.models import Preparation, PreparationInputs
+from backend.modules.preparation.service import PreparationService
+from backend.modules.resume_ingestion.pdf_extractor import MAX_PDF_BYTES
+from backend.modules.resume_ingestion.service import ResumeUpload
 
 router = APIRouter(
     prefix="/api/candidates",
@@ -34,6 +35,7 @@ async def submit(
     # Validate one resume upload and return the persisted profile and interview plan.
     try:
         form = await request.form()
+        # FastAPI selects one file; reject additional uploads rather than silently ignoring them.
         if (
             len([item for _, item in form.multi_items() if hasattr(item, "filename")]) != 1
             or len(form.getlist("resume")) != 1
@@ -48,9 +50,8 @@ async def submit(
                 },
             }
         )
-        content = await resume.read(10 * 1024 * 1024 + 1)
-        if len(content) > 10 * 1024 * 1024:
-            raise InvalidInput("Please upload a PDF smaller than 10 MB.")
+        # Read one byte past the limit so the extractor can reject oversized files.
+        content = await resume.read(MAX_PDF_BYTES + 1)
         upload = ResumeUpload(resume.filename or "", resume.content_type or "", content)
     finally:
         await resume.close()

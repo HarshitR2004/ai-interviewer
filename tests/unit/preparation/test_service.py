@@ -3,7 +3,7 @@ import asyncio
 import pytest
 
 from backend.common.errors import Conflict
-from backend.features.preparation.models import PreparationInputs
+from backend.modules.preparation.models import PreparationInputs
 from tests.factories import preparation
 from tests.fakes import FakeModel, make_preparation
 

@@ -3,16 +3,16 @@
 from pydantic import ValidationError
 
 from backend.common.markdown import DocumentFormatError, Reader, Writer
-from backend.features.interview_planning.models import (
+from backend.modules.interview_planning.models import (
     InterviewPlan,
     InterviewSettings,
     Question,
     ScoringGuidance,
     Section,
 )
-from backend.features.interview_planning.validation import validate_plan
-from backend.features.profiles.models import CandidateProfile, Project
-from backend.features.profiles.validation import validate_profile
+from backend.modules.interview_planning.validation import validate_plan
+from backend.modules.profiles.models import CandidateProfile, Project
+from backend.modules.profiles.validation import validate_profile
 
 
 def render_profile(profile: CandidateProfile) -> str:

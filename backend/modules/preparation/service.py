@@ -1,9 +1,9 @@
 from uuid import uuid4
 
 from backend.common.errors import Conflict
-from backend.features.interview_planning.service import InterviewService
-from backend.features.profiles.service import ProfileService
-from backend.features.resume_ingestion.service import ResumeIngestionService, ResumeUpload
+from backend.modules.interview_planning.service import InterviewService
+from backend.modules.profiles.service import ProfileService
+from backend.modules.resume_ingestion.service import ResumeIngestionService, ResumeUpload
 
 from .models import Preparation, PreparationInputs
 from .ports import PreparationStore

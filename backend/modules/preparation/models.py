@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 
-from backend.features.interview_planning.models import InterviewPlan, InterviewSettings
-from backend.features.profiles.models import CandidateProfile
+from backend.modules.interview_planning.models import InterviewPlan, InterviewSettings
+from backend.modules.profiles.models import CandidateProfile
 
 
 class PreparationInputs(BaseModel):

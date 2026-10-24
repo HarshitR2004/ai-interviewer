@@ -31,9 +31,9 @@ def test_dependency_boundaries():
             )
             if relative.parts[0] in {"integrations", "common"}:
                 assert not module.startswith(
-                    ("backend.features", "backend.api", "backend.bootstrap")
+                    ("backend.modules", "backend.api", "backend.bootstrap")
                 ), (path, module)
-            if relative.parts[0] == "features":
+            if relative.parts[0] == "modules":
                 assert not module.startswith(("backend.api", "backend.bootstrap")), (path, module)
                 if path.stem in {"models", "validation", "transitions"}:
                     assert not module.startswith(
@@ -42,7 +42,7 @@ def test_dependency_boundaries():
                             "httpx",
                             "sqlite3",
                             "pathlib",
-                            "backend.features.preparation.documents",
+                            "backend.modules.preparation.documents",
                         )
                     ), (path, module)
                 if path.name == "service.py":
@@ -55,8 +55,8 @@ def test_no_retired_persistence_or_frontend():
     for name in [
         "runtime",
         "api/schemas",
-        "features/live_interviews/adapters",
-        "features/preparation/adapters",
+        "modules/live_interviews/adapters",
+        "modules/preparation/adapters",
     ]:
         assert not list((BACKEND / name).rglob("*.py"))
     for path in BACKEND.rglob("*.py"):
@@ -69,6 +69,6 @@ def test_no_retired_persistence_or_frontend():
 
 
 def test_relative_import_resolution():
-    assert "backend.features.live_interviews.models" in set(
-        imports(BACKEND / "features/live_interviews/service.py")
+    assert "backend.modules.live_interviews.models" in set(
+        imports(BACKEND / "modules/live_interviews/service.py")
     )

@@ -2,11 +2,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.bootstrap import Services
-from backend.features.live_interviews.audio_service import AudioInterviewService
-from backend.features.live_interviews.service import LiveInterviewService
-from backend.features.live_interviews.sessions import SessionRegistry
-from backend.features.preparation.storage import MarkdownPreparationStore
 from backend.main import create_app
+from backend.modules.live_interviews.audio_service import AudioInterviewService
+from backend.modules.live_interviews.service import LiveInterviewService
+from backend.modules.live_interviews.sessions import SessionRegistry
+from backend.modules.preparation.storage import MarkdownPreparationStore
 from backend.settings import Settings
 from tests.factories import wav_bytes
 from tests.fakes import FakeModel, FakeReasoner, FakeSpeech, make_preparation
@@ -127,6 +127,20 @@ def test_multiple_files_and_private_validation(tmp_path, persona, plan, resume_p
         assert client.get("/api/candidates/missing").status_code == 404
         invalid = client.post("/api/candidates", data={"resume": "private-input"})
         assert invalid.status_code == 422 and "private-input" not in invalid.text
+
+
+def test_oversized_pdf_is_rejected(tmp_path, persona, plan):
+    from backend.modules.resume_ingestion.pdf_extractor import MAX_PDF_BYTES
+
+    with client_for(tmp_path, persona, plan) as client:
+        result = client.post(
+            "/api/candidates",
+            files={"resume": ("resume.pdf", b"x" * (MAX_PDF_BYTES + 1), "application/pdf")},
+            data={"job_description": JD},
+        )
+        assert result.status_code == 422
+        assert result.json()["detail"] == "Please upload a PDF of at most 10 MB."
+        assert not list((tmp_path / "demo/candidates").glob("*"))
 
 
 def test_audio_and_disabled_capabilities(tmp_path, persona, plan, resume_pdf):

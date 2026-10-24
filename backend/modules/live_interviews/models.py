@@ -2,9 +2,9 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from backend.features.interview_planning.models import Question, Section
-from backend.features.preparation.models import Preparation
 from backend.integrations.speech.contracts import Transcript
+from backend.modules.interview_planning.models import Question, Section
+from backend.modules.preparation.models import Preparation
 
 Action = Literal["clarify", "follow_up", "advance", "finish"]
 

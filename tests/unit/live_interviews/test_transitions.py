@@ -1,5 +1,5 @@
-from backend.features.live_interviews.models import Decision
-from backend.features.live_interviews.transitions import new_session, transition
+from backend.modules.live_interviews.models import Decision
+from backend.modules.live_interviews.transitions import new_session, transition
 from tests.factories import preparation
 
 

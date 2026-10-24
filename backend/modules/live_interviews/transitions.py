@@ -1,6 +1,6 @@
 """Pure in-memory interview rules; time and prompt IDs are provided by the caller."""
 
-from backend.features.preparation.models import Preparation
+from backend.modules.preparation.models import Preparation
 
 from .models import Decision, Evidence, Prompt, SessionState, TransitionExplanation
 

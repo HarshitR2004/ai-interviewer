@@ -4,8 +4,8 @@ from pathlib import Path
 from pypdf import PdfWriter
 from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
-from backend.features.interview_planning.models import InterviewPlan, Question, Section
-from backend.features.profiles.models import CandidateProfile, Project
+from backend.modules.interview_planning.models import InterviewPlan, Question, Section
+from backend.modules.profiles.models import CandidateProfile, Project
 
 
 def resume_pdf():
@@ -103,8 +103,8 @@ def wav_bytes():
 
 
 def preparation(profile=None, interview=None, candidate_id="a" * 32):
-    from backend.features.interview_planning.models import InterviewSettings
-    from backend.features.preparation.models import Preparation
+    from backend.modules.interview_planning.models import InterviewSettings
+    from backend.modules.preparation.models import Preparation
 
     return Preparation(
         candidate_id=candidate_id,
