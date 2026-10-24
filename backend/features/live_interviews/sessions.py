@@ -16,6 +16,7 @@ class SessionRegistry:
 
     @contextmanager
     def operation(self, session_id: str) -> Iterator[SessionState]:
+        # Reject overlapping operations and release session ownership even on cancellation.
         if session_id in self._busy:
             raise Conflict("This interview is busy. Wait for the current operation to finish.")
         if session_id not in self._sessions:

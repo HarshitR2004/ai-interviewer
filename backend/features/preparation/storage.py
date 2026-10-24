@@ -21,11 +21,13 @@ class MarkdownPreparationStore:
         self._lock = RLock()
 
     def _path(self, candidate_id: str) -> Path:
+        # Restrict candidate IDs before using them as directory names.
         if not re.fullmatch(r"[a-f0-9]{32}", candidate_id):
             raise NotFound("Candidate not found.")
         return self.root / candidate_id
 
     async def _io(self, work: Callable[[], T]) -> T:
+        # Serialize filesystem work off the event loop and translate storage failures.
         def locked() -> T:
             with self._lock:
                 try:
@@ -40,6 +42,7 @@ class MarkdownPreparationStore:
         return await run_io(locked)
 
     async def create(self, preparation: Preparation, resume: bytes) -> None:
+        # Persist the original resume and both generated documents for a new candidate.
         def write() -> None:
             path = self._path(preparation.candidate_id)
             if path.exists():
@@ -55,6 +58,7 @@ class MarkdownPreparationStore:
         await self._io(write)
 
     async def load(self, candidate_id: str) -> Preparation:
+        # Reconstruct preparation from both Markdown documents without calling the model.
         def read() -> Preparation:
             path = self._path(candidate_id)
             profile = parse_profile((path / "persona.md").read_text(encoding="utf-8"))
@@ -72,6 +76,7 @@ class MarkdownPreparationStore:
         return await self._io(read)
 
     async def replace_plan(self, preparation: Preparation) -> None:
+        # Atomically replace a completed plan while preserving the saved profile.
         def write() -> None:
             path = self._path(preparation.candidate_id)
             if not (path / "persona.md").is_file() or not (path / "interview-plan.md").is_file():

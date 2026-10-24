@@ -16,6 +16,7 @@ from backend.features.profiles.validation import validate_profile
 
 
 def render_profile(profile: CandidateProfile) -> str:
+    # Serialize candidate data into the lossless Markdown document format.
     doc = Writer("Candidate Profile")
     doc.heading("Identity")
     doc.field("Name", profile.name)
@@ -67,6 +68,7 @@ def render_profile(profile: CandidateProfile) -> str:
 
 
 def parse_profile(content: str) -> CandidateProfile:
+    # Rebuild and validate a profile from the expected Markdown structure.
     doc = Reader(content, "Candidate Profile")
     try:
         doc.heading("Identity")
@@ -144,13 +146,13 @@ def parse_profile(content: str) -> CandidateProfile:
 
 
 def render_plan(plan: InterviewPlan, settings: InterviewSettings, job_description: str) -> str:
+    # Save questions, rubrics, and preparation inputs in one Markdown document.
     doc = Writer("Interview Plan")
     doc.field("Role", plan.role, 2)
     doc.heading("Interview Settings")
     for name, value in [
         ("Duration Minutes", str(settings.duration)),
         ("Seniority", settings.seniority),
-        ("Interview Type", settings.interview_type),
     ]:
         doc.field(name, value)
     doc.field("Job Description", job_description, 2)
@@ -192,6 +194,7 @@ def render_plan(plan: InterviewPlan, settings: InterviewSettings, job_descriptio
 def parse_plan(
     content: str, profile: CandidateProfile
 ) -> tuple[InterviewPlan, InterviewSettings, str]:
+    # Rebuild a saved plan and validate its references against the candidate profile.
     doc = Reader(content, "Interview Plan")
     try:
         role = doc.field("Role", 2)
@@ -200,9 +203,11 @@ def parse_plan(
             {
                 "duration": int(doc.field("Duration Minutes")),
                 "seniority": doc.field("Seniority"),
-                "interview_type": doc.field("Interview Type"),
             }
         )
+        # Older saved plans included a user-selected type; all replans now use mixed.
+        if doc.peek() == "### Interview Type":
+            doc.field("Interview Type")
         jd = doc.field("Job Description", 2)
         doc.heading("Required Competencies")
         competencies = doc.items()

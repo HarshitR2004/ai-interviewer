@@ -14,6 +14,7 @@ class ResumeUploadLimits:
         self.active = 0
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        # Limit resume upload size, duration, and concurrency before multipart parsing.
         if (
             scope["type"] != "http"
             or scope["method"] != "POST"

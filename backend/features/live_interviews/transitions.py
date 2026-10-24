@@ -8,6 +8,7 @@ from .models import Decision, Evidence, Prompt, SessionState, TransitionExplanat
 def new_session(
     session_id: str, preparation: Preparation, now: float, prompt_id: str
 ) -> SessionState:
+    # Copy preparation so later replanning cannot alter a running interview.
     return SessionState(
         session_id=session_id,
         preparation=preparation.model_copy(deep=True),
@@ -22,11 +23,13 @@ def new_session(
 
 
 def close(state: SessionState) -> None:
+    # Mark completion and remove the prompt that would otherwise accept answers.
     state.status = "completed"
     state.current_prompt = None
 
 
 def fallback(state: SessionState) -> Decision:
+    # Use an unused prepared follow-up, or advance when assessment is unavailable.
     for text in state.question.follow_ups:
         if text not in state.used_prepared_followups and state.follow_up_count < 2:
             return Decision(action="follow_up", next_question=text)
@@ -36,6 +39,7 @@ def fallback(state: SessionState) -> Decision:
 def transition(
     state: SessionState, decision: Decision, now: float, prompt_id: str, available: bool
 ) -> TransitionExplanation:
+    # Apply time and follow-up limits to the proposed action, then record the outcome.
     action = decision.action
     reason = "model_approved" if available else "assessment_fallback"
     if now >= state.deadline_at:
@@ -47,6 +51,7 @@ def transition(
         action, reason = "advance", "section_expired"
     elif action in {"clarify", "follow_up"} and state.follow_up_count >= 2:
         action, reason = "advance", "follow_up_limit_reached"
+    # Fallback questions keep the interview moving but must not create assessment evidence.
     if available:
         state.evidence.append(
             Evidence(

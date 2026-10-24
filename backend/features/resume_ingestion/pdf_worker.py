@@ -7,6 +7,7 @@ from .pdf_validation import _INVALID, MAX_PDF_BYTES, _extract_checked
 
 
 def main() -> None:
+    # Parse one PDF from standard input and return a bounded JSON result to the parent.
     if sys.platform != "win32":
         import resource
 

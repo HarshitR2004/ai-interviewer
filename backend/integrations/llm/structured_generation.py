@@ -24,6 +24,7 @@ class StructuredGeneration:
         schema: type[T],
         check: Callable[[T], None] | None = None,
     ) -> T:
+        # Validate structured output and allow one repair attempt for schema or domain failures.
         messages = [
             {
                 "role": "system",

@@ -20,6 +20,7 @@ async def run_io(operation: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -
 
 
 def atomic_write(path: Path, content: str | bytes) -> None:
+    # Flush a sibling temporary file before atomically replacing the destination.
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = content.encode("utf-8") if isinstance(content, str) else content
     fd, temporary = tempfile.mkstemp(dir=path.parent, prefix=".pending-")

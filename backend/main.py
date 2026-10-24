@@ -17,7 +17,9 @@ def create_app(
     service_factory: Callable[[Settings], Services] = build_services,
 ) -> FastAPI:
     @asynccontextmanager
+    # Build the API with injectable services and bounded resume uploads.
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        # Own provider resources for the lifetime of this application instance.
         services = service_factory(settings or Settings.model_validate({}))
         app.state.services = services
         try:

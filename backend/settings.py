@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     @field_validator("llm_base_url", "stt_base_url", "tts_base_url")
     @classmethod
     def endpoint(cls, value: str | None) -> str | None:
+        # Normalize provider URLs and reject credentials or request-specific URL components.
         if value is None or not value.strip():
             return None
         try:
@@ -46,6 +47,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def configured(self) -> "Settings":
+        # Check enabled capabilities and resolve storage relative to the project root.
         if not self.llm_base_url or not self.llm_model.strip():
             raise ValueError("Configure LLM_BASE_URL and LLM_MODEL.")
         if self.speech_enabled and not (self.stt_base_url or self.tts_base_url):

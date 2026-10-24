@@ -48,6 +48,7 @@ _BLOCKED_ACTIONS = {
 
 
 def _check_envelope(content: bytes) -> None:
+    # Check size and PDF boundary markers before invoking the parser.
     if not content or len(content) > MAX_PDF_BYTES:
         raise InvalidInput("Please upload a PDF of at most 10 MB.")
     if not re.match(rb"%PDF-(?:1\.[0-7]|2\.0)(?:\r\n|\r|\n)", content):
@@ -57,6 +58,7 @@ def _check_envelope(content: bytes) -> None:
 
 
 def _check_objects(reader: PdfReader) -> None:
+    # Inspect indirect objects as well as reachable content for active features and unsafe links.
     from pypdf.generic import ArrayObject, DictionaryObject, IndirectObject
 
     references = {
@@ -71,6 +73,7 @@ def _check_objects(reader: PdfReader) -> None:
         raise InvalidInput("This PDF is too complex to process safely.")
     stack: list[object] = [reader.trailer]
     stack.extend(IndirectObject(number, generation, reader) for number, generation in references)
+    # Track references and resolved objects separately to stop cyclic graphs.
     seen_refs: set[tuple[int, int]] = set()
     seen_objects: set[int] = set()
     visited = 0
@@ -114,6 +117,7 @@ def _check_objects(reader: PdfReader) -> None:
 
 
 def _extract_checked(content: bytes) -> str:
+    # Bound parser work and accept only readable text from a plain, unencrypted PDF.
     from pypdf import PdfReader, apply_configuration
 
     _check_envelope(content)

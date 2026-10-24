@@ -18,6 +18,7 @@ class ModelReasoner:
         self._client, self._timeout = client, timeout
 
     async def assess(self, state: SessionState, answer: str, remaining_seconds: float) -> Decision:
+        # Ask the model for an assessment using this question's answer turns and recent evidence.
         assert state.current_prompt is not None
         content = {
             "role": state.preparation.plan.role,

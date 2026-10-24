@@ -38,6 +38,7 @@ class ChatCompletionsClient:
         timeout: float = 120,
         max_tokens: int = 8192,
     ) -> str:
+        # Request JSON output and translate transport or malformed-envelope failures.
         try:
             response = await self._client.post(
                 "chat/completions",

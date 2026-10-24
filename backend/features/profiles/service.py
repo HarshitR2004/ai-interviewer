@@ -10,6 +10,7 @@ class ProfileService:
         self.model = model
 
     async def create(self, resume_text: str) -> CandidateProfile:
+        # Generate a resume-grounded profile and set collection metadata in application code.
         allowed_sources = {"resume"}
         persona = await self.model.generate(
             PROFILE,

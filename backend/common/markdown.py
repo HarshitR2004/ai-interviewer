@@ -17,6 +17,7 @@ class Writer:
         self.lines.extend([f"{'#' * level} {name}", ""])
 
     def text(self, value: str) -> None:
+        # Blockquote each line so user content cannot become document structure.
         self.lines.extend(["> " + line if line else ">" for line in value.split("\n")] + [""])
 
     def field(self, name: str, value: str, level: int = 3) -> None:
@@ -24,6 +25,7 @@ class Writer:
         self.text(value)
 
     def items(self, values: list[str]) -> None:
+        # Indent continuation lines to preserve multiline list values.
         if not values:
             self.lines.extend(["No entries.", ""])
             return
@@ -44,6 +46,7 @@ class Reader:
         self.expect(f"# {title}")
 
     def peek(self) -> str:
+        # Skip separator lines without consuming the next field.
         while self.index < len(self.lines) and self.lines[self.index] == "":
             self.index += 1
         return self.lines[self.index] if self.index < len(self.lines) else ""
@@ -57,6 +60,7 @@ class Reader:
         self.expect(f"{'#' * level} {name}")
 
     def text(self) -> str:
+        # Decode blockquoted values without interpreting their Markdown content.
         self.peek()
         values: list[str] = []
         while self.index < len(self.lines):
@@ -77,6 +81,7 @@ class Reader:
         return self.text()
 
     def items(self) -> list[str]:
+        # Reassemble list entries, including indented continuation lines.
         if self.peek() == "No entries.":
             self.expect("No entries.")
             return []
@@ -95,6 +100,7 @@ class Reader:
         return values
 
     def groups(self, label: str) -> Iterator[int]:
+        # Require consecutive numbered groups, or an explicit empty-list marker.
         if self.peek() == "No entries.":
             self.expect("No entries.")
             return
@@ -107,6 +113,7 @@ class Reader:
             raise DocumentFormatError(f"Expected numbered {label} group or 'No entries.'.")
 
     def finish(self) -> None:
+        # Reject trailing content instead of silently accepting an incompatible document.
         if self.peek():
             raise DocumentFormatError(
                 f"Markdown line {self.index + 1}: unexpected document content."

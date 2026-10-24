@@ -22,6 +22,7 @@ class PreparationService:
         self._busy: set[str] = set()
 
     async def submit(self, upload: ResumeUpload, inputs: PreparationInputs) -> Preparation:
+        # Extract the resume, generate both artifacts, and persist before reporting success.
         text = await self._ingestion.extract(upload)
         profile = await self._profiles.create(text)
         plan = await self._interviews.create(profile, inputs.job_description, inputs.settings)
@@ -36,11 +37,13 @@ class PreparationService:
         return result
 
     async def get(self, candidate_id: str) -> Preparation:
+        # Prevent reads during replanning, then reload the completed preparation.
         if candidate_id in self._busy:
             raise Conflict("This candidate is being replanned.")
         return await self._store.load(candidate_id)
 
     async def replan(self, candidate_id: str, inputs: PreparationInputs) -> Preparation:
+        # Keep the profile and replace the plan only after successful generation.
         if candidate_id in self._busy:
             raise Conflict("This candidate is being replanned.")
         self._busy.add(candidate_id)

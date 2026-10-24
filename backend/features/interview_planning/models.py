@@ -7,7 +7,6 @@ class InterviewSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
     duration: int = Field(default=45, ge=15, le=120)
     seniority: Literal["junior", "mid", "senior"] = "junior"
-    interview_type: Literal["mixed", "technical", "project"] = "mixed"
 
 
 class RoleRequirements(BaseModel):

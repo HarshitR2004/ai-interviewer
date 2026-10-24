@@ -30,8 +30,8 @@ async def submit(
     job_description: Annotated[str, Form(min_length=40, max_length=12000)],
     duration: Annotated[int, Form()] = 45,
     seniority: Annotated[str, Form()] = "junior",
-    interview_type: Annotated[str, Form()] = "mixed",
 ) -> Preparation:
+    # Validate one resume upload and return the persisted profile and interview plan.
     try:
         form = await request.form()
         if (
@@ -45,7 +45,6 @@ async def submit(
                 "settings": {
                     "duration": duration,
                     "seniority": seniority,
-                    "interview_type": interview_type,
                 },
             }
         )
@@ -60,9 +59,11 @@ async def submit(
 
 @router.get("/{candidate_id}", response_model=Preparation)
 async def get(candidate_id: str, service: Service) -> Preparation:
+    # Reload a completed preparation from its saved documents.
     return await service.get(candidate_id)
 
 
 @router.post("/{candidate_id}/interview", response_model=Preparation)
 async def replan(candidate_id: str, body: PreparationInputs, service: Service) -> Preparation:
+    # Regenerate the plan using the existing candidate profile.
     return await service.replan(candidate_id, body)

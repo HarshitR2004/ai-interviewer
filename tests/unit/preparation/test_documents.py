@@ -20,6 +20,19 @@ def test_full_round_trip(persona, plan):
     assert restored == plan and settings == value.settings and jd == value.job_description
 
 
+@pytest.mark.parametrize("legacy_type", ["mixed", "technical", "project"])
+def test_legacy_interview_type_is_discarded(persona, plan, legacy_type):
+    document = render_plan(plan, InterviewSettings(), "job description")
+    assert "Interview Type" not in document
+    document = document.replace(
+        "## Job Description",
+        f"### Interview Type\n\n> {legacy_type}\n\n## Job Description",
+    )
+    restored, settings, _ = parse_plan(document, persona)
+    assert restored == plan
+    assert settings.model_dump() == {"duration": 45, "seniority": "junior"}
+
+
 @pytest.mark.parametrize(
     "text",
     [

@@ -18,10 +18,7 @@ _PARSER_SLOTS = BoundedSemaphore(2)
 
 
 def extract_resume(content: bytes) -> str:
-    """Run parsing out of process so a timeout terminates parser work, not just its waiter.
-
-    This is resource containment, not an antivirus or an OS security sandbox.
-    """
+    """Contain parser work in a killable process; this is not an OS security sandbox."""
     _check_envelope(content)
     if not _PARSER_SLOTS.acquire(blocking=False):
         raise InvalidInput("Resume processing is busy. Please try again shortly.")

@@ -32,6 +32,7 @@ class SpeechClient:
         self, url: str | None, path: str, key: SecretStr | str | None, **kwargs: Any
     ) -> bytes:
 
+        # Send a speech request while bounding response size and translating provider failures.
         if not url:
             raise Unavailable("The requested speech endpoint is not configured.")
 
@@ -71,6 +72,7 @@ class SpeechClient:
 
     async def transcribe(self, content: bytes) -> Transcript:
 
+        # Validate input WAV audio and require a nonempty, bounded transcript.
         validate_wav(content)
 
         raw = await self.call(
@@ -103,6 +105,7 @@ class SpeechClient:
 
     async def synthesize(self, text: str) -> bytes:
 
+        # Require the provider response to match the supported WAV format.
         content = await self.call(self.tts_url, "synthesize", self.tts_key, json={"text": text})
 
         try:

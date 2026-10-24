@@ -6,6 +6,7 @@ from .models import InterviewPlan, InterviewSettings
 def validate_plan(
     plan: InterviewPlan, persona: CandidateProfile, settings: InterviewSettings
 ) -> None:
+    # Enforce duration, competency coverage, valid project references, and distinct questions.
     if sum(section.minutes for section in plan.sections) != settings.duration:
         raise ValueError("Section minutes must total the requested duration.")
     covered = {section.competency.casefold() for section in plan.sections}

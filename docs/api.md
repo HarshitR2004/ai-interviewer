@@ -7,7 +7,8 @@ or multipart uploads; saved generated documents use Markdown only.
 
 `POST /api/candidates`: multipart `resume` (exactly one PDF up to 10 MiB),
 `job_description` (40–12,000 characters), `duration` (15–120, default 45), `seniority`
-(junior/mid/senior, default junior), `interview_type` (mixed/technical/project, default mixed).
+(junior/mid/senior, default junior). Every interview mixes technical and project questions;
+the LLM chooses the balance from the role requirements and candidate context.
 The request waits for extraction, generation, validation, and persistence. HTTP 201 returns
 `{candidate_id, profile, plan, settings, job_description}`. `profile` and `plan` are the
 complete typed models defined in OpenAPI.
@@ -19,7 +20,7 @@ return 404, invalid documents 422. Reading documents does not invoke the model.
 `POST /api/candidates/{candidate_id}/interview` accepts:
 
 ```json
-{"job_description":"Build Python APIs with database design and testing.","settings":{"duration":45,"seniority":"junior","interview_type":"mixed"}}
+{"job_description":"Build Python APIs with database design and testing.","settings":{"duration":45,"seniority":"junior"}}
 ```
 
 It waits for replanning, atomically replaces `interview-plan.md`, and returns the completed

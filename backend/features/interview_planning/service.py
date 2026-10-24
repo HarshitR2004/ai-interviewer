@@ -16,6 +16,7 @@ class InterviewService:
     async def create(
         self, persona: CandidateProfile, job_description: str, settings: InterviewSettings
     ) -> InterviewPlan:
+        # Resolve competencies, then generate a mixed interview with validated coverage.
         competencies = explicit_competencies(job_description)
         if competencies is None:
             requirements = await self.model.generate(
@@ -27,6 +28,7 @@ class InterviewService:
         schema = planning_schema(competencies)
 
         def check_plan(value: BaseModel) -> None:
+            # Check domain rules inside generation so invalid output can use the repair attempt.
             plan = as_interview(value, competencies)
             allocate_time(plan, settings)
             validate_plan(plan, persona, settings)

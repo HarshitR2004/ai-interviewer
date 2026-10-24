@@ -15,6 +15,7 @@ class AudioInterviewService:
         self._live, self._transcriber, self._synthesizer = live, transcriber, synthesizer
 
     async def answer(self, session_id: str, content: bytes, prompt_id: str) -> AnswerResult:
+        # Hold one session guard across transcription and assessment to prevent competing answers.
         with self._live.operation(session_id) as state:
             self._live.require_prompt(state, prompt_id)
             if self._transcriber is None:
@@ -28,6 +29,7 @@ class AudioInterviewService:
             return result.model_copy(update={"transcription": transcript})
 
     async def prompt_audio(self, session_id: str, prompt_id: str) -> bytes:
+        # Recheck the prompt after synthesis so expired audio is not returned.
         with self._live.operation(session_id) as state:
             self._live.require_prompt(state, prompt_id)
             if self._synthesizer is None:

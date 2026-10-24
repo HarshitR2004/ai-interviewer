@@ -21,6 +21,7 @@ class ResumeIngestionService:
         self.extractor = extractor
 
     async def extract(self, upload: ResumeUpload) -> str:
+        # Validate upload metadata before running blocking PDF extraction off the event loop.
         name = upload.filename
         if (
             not name.lower().endswith(".pdf")

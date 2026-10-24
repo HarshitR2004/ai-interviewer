@@ -31,22 +31,26 @@ class LiveInterviewService:
 
     @contextmanager
     def operation(self, session_id: str) -> Iterator[SessionState]:
+        # Hold exclusive session access and close expired interviews before use.
         with self._sessions.operation(session_id) as state:
             if state.status == "active" and self._clock() >= state.deadline_at:
                 close(state)
             yield state
 
     async def create(self, candidate_id: str) -> PublicSession:
+        # Snapshot a saved preparation into a new in-memory interview session.
         preparation = await self._preparation.get(candidate_id)
         state = new_session(uuid4().hex, preparation, self._clock(), uuid4().hex)
         self._sessions.add(state)
         return state.public()
 
     def get(self, session_id: str) -> PublicSession:
+        # Expose public progress while applying the session expiry rules.
         with self.operation(session_id) as state:
             return state.public()
 
     def require_prompt(self, state: SessionState, prompt_id: str) -> None:
+        # Reject expired sessions and answers targeting an outdated prompt.
         if state.status != "active" or self._clock() >= state.deadline_at:
             close(state)
             raise Conflict("Interview is no longer accepting answers.")
@@ -54,10 +58,12 @@ class LiveInterviewService:
             raise Conflict("This prompt is no longer current.")
 
     async def answer(self, session_id: str, body: AnswerInput) -> AnswerResult:
+        # Keep the session guard held throughout text-answer assessment.
         with self.operation(session_id) as state:
             return await self.assess_answer(state, body)
 
     def require_reasoning(self) -> None:
+        # Fail before saving an answer when live assessment is disabled.
         if self._reasoner is None:
             raise Unavailable("Live reasoning is disabled. No answer was saved.")
 
@@ -71,6 +77,7 @@ class LiveInterviewService:
             decision = Decision.model_validate(
                 await asyncio.wait_for(
                     self._reasoner.assess(
+                        # Isolate provider assessment from the mutable live session.
                         state.model_copy(deep=True),
                         body.answer,
                         max(0, state.deadline_at - self._clock()),
@@ -90,6 +97,7 @@ class LiveInterviewService:
         return AnswerResult(session=state.public(), transition=outcome)
 
     def end(self, session_id: str) -> PublicSession:
+        # Close the interview under the same guard used for answers.
         with self.operation(session_id) as state:
             close(state)
             return state.public()

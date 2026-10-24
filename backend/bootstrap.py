@@ -28,12 +28,14 @@ class Services:
     speech: SpeechClient | None = None
 
     async def aclose(self) -> None:
+        # Close provider clients when the application shuts down.
         await asyncio.gather(
             *(client.aclose() for client in (self.model, self.speech) if client is not None)
         )
 
 
 def build_services(settings: Settings) -> Services:
+    # Wire shared providers into preparation, live-session, and optional speech services.
     client = ChatCompletionsClient(settings.llm_base_url, settings.llm_model, settings.llm_api_key)
     generator = StructuredGeneration(client)
     preparation = PreparationService(

@@ -8,6 +8,7 @@ MAX_AUDIO_BYTES = 12 * 1024 * 1024
 
 def validate_wav(content: bytes) -> None:
 
+    # Check audio encoding, duration, and size before accepting WAV data.
     try:
         if not content or len(content) > MAX_AUDIO_BYTES:
             raise ValueError

@@ -12,6 +12,7 @@ class ErrorResponse(BaseModel):
 
 def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ApplicationError)
+    # Map domain failures to HTTP responses without exposing validation internals.
     async def application_error(request: Request, exc: ApplicationError) -> JSONResponse:
         status = (
             422

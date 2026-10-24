@@ -9,6 +9,7 @@ from .models import InterviewPlan, InterviewSettings, Section
 
 
 def explicit_competencies(job_description: str) -> list[str] | None:
+    # Honor a declared competency list before asking the model to extract one.
     match = re.search(r"(?im)^\s*required competencies:\s*([^\r\n]+)", job_description)
     if not match:
         return None
@@ -20,6 +21,7 @@ def explicit_competencies(job_description: str) -> list[str] | None:
 
 
 def planning_schema(competencies: list[str]) -> type[BaseModel]:
+    # Require one section per competency and fix its name in the generation schema.
     fields: dict[str, Any] = {}
     for index, competency in enumerate(competencies, start=1):
         section = create_model(
@@ -33,6 +35,7 @@ def planning_schema(competencies: list[str]) -> type[BaseModel]:
 
 
 def as_interview(value: BaseModel, competencies: list[str]) -> InterviewPlan:
+    # Convert schema-specific section fields into the domain plan format.
     return InterviewPlan(
         role=value.model_dump()["role"],
         required_competencies=competencies,
@@ -41,12 +44,14 @@ def as_interview(value: BaseModel, competencies: list[str]) -> InterviewPlan:
 
 
 def allocate_time(plan: InterviewPlan, settings: InterviewSettings) -> None:
+    # Fit model-proposed proportions to the requested duration, with at least one minute per section.
     total = sum(section.minutes for section in plan.sections)
     if total == settings.duration:
         return
     count = len(plan.sections)
     if count > settings.duration:
         raise ValueError("There are too many sections for this interview duration.")
+    # Reserve one minute per section, then distribute leftover minutes by fractional share.
     remaining = settings.duration - count
     shares = [remaining * section.minutes / total for section in plan.sections]
     allocations = [1 + int(share) for share in shares]

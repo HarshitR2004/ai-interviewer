@@ -142,10 +142,6 @@ multiple numbered categories, and Collection Status multiple numbered source/sta
 
 > junior
 
-### Interview Type
-
-> mixed
-
 ## Job Description
 
 > Build Python APIs with database design and testing.
