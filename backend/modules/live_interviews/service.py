@@ -65,7 +65,11 @@ class LiveInterviewService:
             if session_id not in self._analyses:
                 self._analyses[session_id] = await self._analysis_generator.generate(
                     ANALYSIS_INSTRUCTION,
-                    {"session": session, "transcript": transcript},
+                    {
+                        "session": session,
+                        "transcript": transcript,
+                        "role_context": history.get("role_context"),
+                    },
                     InterviewAnalysis,
                 )
             return self._analyses[session_id]
@@ -136,6 +140,11 @@ class LiveInterviewService:
                 "session": state.public().model_dump(),
                 "events": state.history,
                 "evidence": [item.model_dump() for item in state.evidence],
+                "role_context": {
+                    "role": state.preparation.plan.role,
+                    "job_description": state.preparation.job_description,
+                    "seniority": state.preparation.settings.seniority,
+                },
             }
 
     def agent_state(self, session_id: str) -> PublicSession:

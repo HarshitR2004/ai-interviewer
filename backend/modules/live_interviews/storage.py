@@ -23,6 +23,11 @@ class JsonHistoryStore:
                     "session": state.public().model_dump(),
                     "events": state.history,
                     "evidence": [item.model_dump() for item in state.evidence],
+                    "role_context": {
+                        "role": state.preparation.plan.role,
+                        "job_description": state.preparation.job_description,
+                        "seniority": state.preparation.settings.seniority,
+                    },
                 },
                 ensure_ascii=False,
                 indent=2,

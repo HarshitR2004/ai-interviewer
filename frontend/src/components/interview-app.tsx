@@ -739,7 +739,7 @@ export function App({ jobDescription }: { jobDescription: string }) {
                 aria-busy={analyzing}
               >
                 <div className="section-top">
-                  <h2>Your interview analysis.</h2>
+                  <h2>Recruiter interview report.</h2>
                   {!analysis && (
                     <button
                       className="primary"
@@ -760,13 +760,13 @@ export function App({ jobDescription }: { jobDescription: string }) {
                 {analysisError && <p role="alert">{analysisError}</p>}
                 {analyzing && (
                   <p role="status">
-                    Reviewing your answers and the flow of your conversation…
+                    Reviewing interview evidence and alignment with the role…
                   </p>
                 )}
                 {!analysis && !analyzing && (
                   <p className="muted">
-                    Get feedback on your answers, strengths, and what to
-                    practice next.{" "}
+                    Review demonstrated strengths, role alignment, evidence gaps,
+                    and recommended recruiter follow-up.{" "}
                     {history &&
                       !history.events.some(
                         (event) =>
@@ -782,9 +782,9 @@ export function App({ jobDescription }: { jobDescription: string }) {
                     {(
                       [
                         ["Interview flow", analysis.interview_flow],
-                        ["Strengths", analysis.strengths],
-                        ["Areas to improve", analysis.improvements],
-                        ["What to practice next", analysis.next_steps],
+                        ["Demonstrated strengths", analysis.strengths],
+                        ["Concerns and evidence gaps", analysis.improvements],
+                        ["Recommended recruiter follow-up", analysis.next_steps],
                       ] as const
                     ).map(([title, items]) => (
                       <div key={title}>

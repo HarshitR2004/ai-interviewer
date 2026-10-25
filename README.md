@@ -14,7 +14,7 @@ flowchart TD
     F --> G[Role questions and project discussion]
     G --> H[Closing and candidate questions]
     H --> I[Saved conversation]
-    I --> J[Request interview analysis and practice suggestions]
+    I --> J[Request recruiter assessment and follow-up recommendations]
 ```
 
 The plan uses the resume, role requirements, seniority, and selected duration. Longer sessions add scenarios and behavioral questions. Introduction and closing collect context without scoring.
@@ -87,7 +87,7 @@ sequenceDiagram
 
 Speech-start events interrupt playback and cancel pending assessment when the candidate resumes talking. The browser provides mute, stop-speaking, and repeat-question controls. Only final transcripts reach assessment. Audio is sent to Gemini; the app saves text and evidence, without recording audio locally. API credentials stay on the server.
 
-## Brief setup
+## Setup
 
 Requires Windows PowerShell, Python 3.12+, Node.js 22.22+, internet access, and a Gemini API key with access to the models configured in `.env.example`.
 
@@ -99,37 +99,20 @@ Requires Windows PowerShell, Python 3.12+, Node.js 22.22+, internet access, and 
 
    Set `GEMINI_API_KEY` in `.env` and check the configured text, transcription, and TTS model names.
 
-2. Install dependencies and check hosted speech access:
+2. Run the one-time setup:
 
    ```powershell
-   python -m venv work/speech-venv
-   work/speech-venv/Scripts/python.exe -m pip install -r requirements-lock.txt
-   work/speech-venv/Scripts/python.exe -m pip install --no-deps -e ".[voice,test]"
-   powershell -ExecutionPolicy Bypass -File scripts/setup-livekit.ps1
-   work/speech-venv/Scripts/python.exe scripts/setup_speech.py
-   npm --prefix frontend ci
+   powershell -ExecutionPolicy Bypass -File scripts/setup-demo.ps1
    ```
 
-   The speech check makes small paid Gemini requests.
+   This installs dependencies and LiveKit, and checks hosted speech access. The speech check makes small paid Gemini requests.
 
-3. Run each service in a separate PowerShell terminal from the project root:
-
-   ```powershell
-   work/livekit/livekit-server.exe --dev --bind 127.0.0.1
-   ```
+3. Start all services and open the app with one command:
 
    ```powershell
-   work/speech-venv/Scripts/python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
-   ```
-
-   ```powershell
-   work/speech-venv/Scripts/python.exe -m backend.voice_agent dev --no-reload --log-level info
-   ```
-
-   ```powershell
-   npm --prefix frontend run dev
+   powershell -ExecutionPolicy Bypass -File scripts/start-demo.ps1 -OpenBrowser
    ```
 
    Open [localhost:5173](http://127.0.0.1:5173). Upload a resume, pass the microphone check, prepare, and join. Use headphones to reduce echo.
 
-Keep the service terminals open; press Ctrl+C in each to stop the app.
+Keep the launcher terminal open; press Ctrl+C to stop its services.
