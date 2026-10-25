@@ -195,8 +195,26 @@ it("prepares, joins, shows captions, controls the agent, and displays saved hist
     ((preparationCall?.[1] as RequestInit).body as FormData).get("resume"),
   ).toHaveProperty("name", "resume.pdf");
   fireEvent.click(screen.getByRole("button", { name: /Join interview/ }));
-  await screen.findByText(active.current_prompt.text);
+  await screen.findByText("Your interviewer will begin shortly.");
+  expect(screen.queryByText(active.current_prompt.text)).toBeNull();
   await waitFor(() => expect(fake.microphone).toHaveBeenCalledWith(true));
+  expect(
+    (
+      screen.getByRole("button", {
+        name: "Repeat question",
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(true);
+  act(() =>
+    fake.room.emit(
+      "data",
+      new TextEncoder().encode(
+        JSON.stringify({ kind: "state", state: "speaking" }),
+      ),
+      { kind: 4 },
+    ),
+  );
+  await screen.findByText(active.current_prompt.text);
   act(() =>
     fake.room.emit(
       "data",
@@ -242,8 +260,16 @@ it("stops the microphone check and allows another check with icon controls", asy
   expect(stop.textContent).toBe("");
   fireEvent.click(stop);
   expect(fake.micStop).toHaveBeenCalledTimes(1);
-  expect((screen.getByLabelText("Microphone input level") as HTMLMeterElement).value).toBe(0);
-  expect((screen.getByRole("button", { name: /Prepare interview/ }) as HTMLButtonElement).disabled).toBe(false);
+  expect(
+    (screen.getByLabelText("Microphone input level") as HTMLMeterElement).value,
+  ).toBe(0);
+  expect(
+    (
+      screen.getByRole("button", {
+        name: /Prepare interview/,
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(false);
   fireEvent.click(screen.getByRole("button", { name: "Check microphone" }));
   await screen.findByRole("button", { name: "Stop microphone check" });
   expect(fake.media).toHaveBeenCalledTimes(2);
@@ -251,10 +277,16 @@ it("stops the microphone check and allows another check with icon controls", asy
 
 it("stops a pending check and releases microphone access if permission resolves later", async () => {
   let resolve!: (stream: unknown) => void;
-  fake.media.mockReturnValueOnce(new Promise((done) => { resolve = done; }));
+  fake.media.mockReturnValueOnce(
+    new Promise((done) => {
+      resolve = done;
+    }),
+  );
   render(<App jobDescription={fixedJobDescription} />);
   fireEvent.click(screen.getByRole("button", { name: "Check microphone" }));
-  fireEvent.click(screen.getByRole("button", { name: "Stop microphone check" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Stop microphone check" }),
+  );
   await act(async () => resolve({ getTracks: () => [{ stop: fake.micStop }] }));
   expect(fake.micStop).toHaveBeenCalledTimes(1);
   expect(screen.getByRole("button", { name: "Check microphone" })).toBeTruthy();

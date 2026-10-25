@@ -11,6 +11,14 @@ export type History = {
   events: { kind: string; text: string; interrupted?: boolean }[];
   evidence: unknown[];
 };
+export type InterviewAnalysis = {
+  summary: string;
+  interview_flow: string[];
+  strengths: string[];
+  improvements: string[];
+  next_steps: string[];
+  limitations: string;
+};
 export class RequestError extends Error {
   constructor(
     message: string,

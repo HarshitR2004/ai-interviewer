@@ -12,6 +12,7 @@ import {
   RequestError,
   type Session,
   type History,
+  type InterviewAnalysis,
 } from "@/api";
 import { VoicePresence } from "./voice-presence";
 import { MicIcon } from "./mic-icon";
@@ -48,6 +49,33 @@ export function App({ jobDescription }: { jobDescription: string }) {
     }
   });
   const [history, setHistory] = useState<History | null>(null);
+  const [analysis, setAnalysis] = useState<InterviewAnalysis | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState("");
+  useEffect(() => {
+    setAnalysis(null);
+    setAnalysisError("");
+  }, [session?.session_id]);
+  async function viewAnalysis() {
+    if (!session || analyzing) return;
+    setAnalyzing(true);
+    setAnalysisError("");
+    const id = session.session_id;
+    try {
+      const result = await request<InterviewAnalysis>(
+        `/api/live-sessions/${id}/analysis`,
+        { method: "POST" },
+      );
+      if (latest.current?.session_id === id) setAnalysis(result);
+    } catch {
+      if (latest.current?.session_id === id)
+        setAnalysisError(
+          "We couldn’t analyze this interview. Please try again.",
+        );
+    } finally {
+      setAnalyzing(false);
+    }
+  }
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [state, setState] = useState("Not connected"),
@@ -57,6 +85,7 @@ export function App({ jobDescription }: { jobDescription: string }) {
   const [micReady, setMicReady] = useState(false),
     [level, setLevel] = useState(0);
   const [audioBlocked, setAudioBlocked] = useState(false);
+  const [startingVoice, setStartingVoice] = useState(false);
   const meter = useRef<() => void>(() => {});
   const [checkingMic, setCheckingMic] = useState(false);
   const micAttempt = useRef(0);
@@ -107,7 +136,8 @@ export function App({ jobDescription }: { jobDescription: string }) {
               ? old
               : event.session,
           );
-        if (event.kind === "state")
+        if (event.kind === "state") {
+          if (event.state === "speaking") setStartingVoice(false);
           setState(
             (
               {
@@ -119,6 +149,7 @@ export function App({ jobDescription }: { jobDescription: string }) {
               } as Record<string, string>
             )[event.state] || "Connecting",
           );
+        }
         if (event.kind === "caption") {
           setCaption(event.text);
           if (event.final && event.text !== finalCaption.current) {
@@ -127,10 +158,12 @@ export function App({ jobDescription }: { jobDescription: string }) {
             setCaption("");
           }
         }
-        if (event.kind === "error")
+        if (event.kind === "error") {
+          setStartingVoice(false);
           setError(
             "The interviewer hit a problem. Try reconnecting to continue.",
           );
+        }
       } catch {
         /* Ignore unrelated room messages. */
       }
@@ -239,7 +272,7 @@ export function App({ jobDescription }: { jobDescription: string }) {
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true },
+          audio: { echoCancellation: true, noiseSuppression: true },
         });
       } catch (error) {
         if (attempt !== micAttempt.current) return;
@@ -319,41 +352,48 @@ export function App({ jobDescription }: { jobDescription: string }) {
   }
   async function join() {
     await run(async () => {
-      meter.current();
-      setState("Connecting");
-      // Start playback permission from the user's click before waiting on network work.
-      await room.startAudio();
-      let active = latest.current;
-      if (!active || ["completed", "failed"].includes(active.status)) {
-        active = await request<Session>("/api/live-sessions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ candidate_id: candidate }),
-        });
-        latest.current = active;
-        setSession(active);
-        setHistory(null);
-        setCaptions([]);
-        setCaption("");
-        finalCaption.current = "";
-      }
-      const connection = await request<{ url: string; token: string }>(
-        `/api/live-sessions/${active.session_id}/voice`,
-        { method: "POST" },
-      );
-      if (room.state !== ConnectionState.Disconnected) await room.disconnect();
-      await room.connect(connection.url, connection.token);
+      setStartingVoice(true);
       try {
-        await room.localParticipant.setMicrophoneEnabled(true);
-        setMuted(false);
-      } catch {
-        await room.disconnect();
-        throw new RequestError(
-          "Microphone access was denied. Allow it in your browser, then reconnect.",
-          0,
+        meter.current();
+        setState("Connecting");
+        // Start playback permission from the user's click before waiting on network work.
+        await room.startAudio();
+        let active = latest.current;
+        if (!active || ["completed", "failed"].includes(active.status)) {
+          active = await request<Session>("/api/live-sessions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ candidate_id: candidate }),
+          });
+          latest.current = active;
+          setSession(active);
+          setHistory(null);
+          setCaptions([]);
+          setCaption("");
+          finalCaption.current = "";
+        }
+        const connection = await request<{ url: string; token: string }>(
+          `/api/live-sessions/${active.session_id}/voice`,
+          { method: "POST" },
         );
+        if (room.state !== ConnectionState.Disconnected)
+          await room.disconnect();
+        await room.connect(connection.url, connection.token);
+        try {
+          await room.localParticipant.setMicrophoneEnabled(true);
+          setMuted(false);
+        } catch {
+          await room.disconnect();
+          throw new RequestError(
+            "Microphone access was denied. Allow it in your browser, then reconnect.",
+            0,
+          );
+        }
+        setAudioBlocked(!room.canPlaybackAudio);
+      } catch (error) {
+        setStartingVoice(false);
+        throw error;
       }
-      setAudioBlocked(!room.canPlaybackAudio);
     });
   }
   async function control(action: string) {
@@ -462,10 +502,26 @@ export function App({ jobDescription }: { jobDescription: string }) {
                       type="button"
                       disabled={busy && !checkingMic}
                       onClick={checkMic}
-                      aria-label={checkingMic ? "Stop microphone check" : "Check microphone"}
-                      title={checkingMic ? "Stop microphone check" : "Check microphone"}
+                      aria-label={
+                        checkingMic
+                          ? "Stop microphone check"
+                          : "Check microphone"
+                      }
+                      title={
+                        checkingMic
+                          ? "Stop microphone check"
+                          : "Check microphone"
+                      }
                     >
-                      {checkingMic ? <Square size={18} fill="currentColor" aria-hidden="true" /> : <MicIcon />}
+                      {checkingMic ? (
+                        <Square
+                          size={18}
+                          fill="currentColor"
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <MicIcon />
+                      )}
                     </button>
                     <meter
                       min="0"
@@ -473,7 +529,9 @@ export function App({ jobDescription }: { jobDescription: string }) {
                       value={level}
                       aria-label="Microphone input level"
                     />
-                    <span className="mic-check-result" aria-hidden="true">{micReady && <Check size={20} />}</span>
+                    <span className="mic-check-result" aria-hidden="true">
+                      {micReady && <Check size={20} />}
+                    </span>
                     <p className="sr-only" role="status">
                       {micReady
                         ? "Microphone ready"
@@ -545,7 +603,11 @@ export function App({ jobDescription }: { jobDescription: string }) {
                 <div className="session-meta">
                   <span className="state" role="status">
                     <span className="status-dot" />
-                    {slowReply ? "Still preparing the next question…" : state}
+                    {startingVoice
+                      ? "Preparing interviewer audio…"
+                      : slowReply
+                        ? "Still preparing the next question…"
+                        : state}
                   </span>
                 </div>
               </div>
@@ -568,15 +630,19 @@ export function App({ jobDescription }: { jobDescription: string }) {
                       INTERVIEWER <span aria-hidden="true">↘</span>
                     </p>
                     <h2>
-                      {session.current_prompt?.text ||
-                        "Getting your conversation ready…"}
+                      {startingVoice
+                        ? "Your interviewer will begin shortly."
+                        : session.current_prompt?.text ||
+                          "Getting your conversation ready…"}
                     </h2>
                   </div>
                   <div className="answer">
                     <p className="eyebrow">YOU</p>
                     <p>
                       {[...captions, caption].filter(Boolean).join(" ") ||
-                        "Your answer appears here."}
+                        (startingVoice
+                          ? "Take a moment to settle in. Wait for the question before answering."
+                          : "Your answer appears here.")}
                     </p>
                   </div>
                 </div>
@@ -585,20 +651,24 @@ export function App({ jobDescription }: { jobDescription: string }) {
                 <p>Speak naturally. You can interrupt or ask to repeat.</p>
                 <div className="turn-controls">
                   <button
-                    disabled={!connected || busy}
+                    disabled={!connected || busy || startingVoice}
                     onClick={() => control("repeat")}
                   >
                     Repeat question
                   </button>
                   <button
-                    disabled={!connected || busy}
+                    disabled={!connected || busy || startingVoice}
                     onClick={() => control("stop")}
                   >
                     Stop speaking
                   </button>
                 </div>
                 <div className="session-controls">
-                  <button hidden={connected && !error} disabled={busy} onClick={join}>
+                  <button
+                    hidden={connected && !error}
+                    disabled={busy}
+                    onClick={join}
+                  >
                     Reconnect
                   </button>
                   <button
@@ -663,6 +733,79 @@ export function App({ jobDescription }: { jobDescription: string }) {
                   Start another interview <span aria-hidden="true">↗</span>
                 </button>
               </div>
+              <section
+                className="transcript analysis"
+                aria-label="Interview analysis"
+                aria-busy={analyzing}
+              >
+                <div className="section-top">
+                  <h2>Your interview analysis.</h2>
+                  {!analysis && (
+                    <button
+                      className="primary"
+                      disabled={
+                        analyzing ||
+                        !history?.events.some(
+                          (event) =>
+                            ["candidate", "answer"].includes(event.kind) &&
+                            event.text.trim(),
+                        )
+                      }
+                      onClick={viewAnalysis}
+                    >
+                      {analyzing ? "Analyzing interview…" : "View Analysis"}
+                    </button>
+                  )}
+                </div>
+                {analysisError && <p role="alert">{analysisError}</p>}
+                {analyzing && (
+                  <p role="status">
+                    Reviewing your answers and the flow of your conversation…
+                  </p>
+                )}
+                {!analysis && !analyzing && (
+                  <p className="muted">
+                    Get feedback on your answers, strengths, and what to
+                    practice next.{" "}
+                    {history &&
+                      !history.events.some(
+                        (event) =>
+                          ["candidate", "answer"].includes(event.kind) &&
+                          event.text.trim(),
+                      ) &&
+                      "No saved answers are available to analyze."}
+                  </p>
+                )}
+                {analysis && (
+                  <>
+                    <p>{analysis.summary}</p>
+                    {(
+                      [
+                        ["Interview flow", analysis.interview_flow],
+                        ["Strengths", analysis.strengths],
+                        ["Areas to improve", analysis.improvements],
+                        ["What to practice next", analysis.next_steps],
+                      ] as const
+                    ).map(([title, items]) => (
+                      <div key={title}>
+                        <h3>{title}</h3>
+                        {items.length ? (
+                          <ul>
+                            {items.map((item, index) => (
+                              <li key={index}>{item}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="muted">
+                            Not enough evidence in this conversation.
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                    <p className="muted">{analysis.limitations}</p>
+                  </>
+                )}
+              </section>
               <div className="transcript">
                 <div className="section-top">
                   <h2>Your conversation.</h2>

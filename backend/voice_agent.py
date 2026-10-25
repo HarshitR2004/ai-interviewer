@@ -11,7 +11,7 @@ from uuid import uuid4
 
 import httpx
 from livekit import agents, rtc
-from livekit.agents import Agent, AgentSession, llm, room_io
+from livekit.agents import Agent, AgentSession, llm, room_io, tts
 
 from backend.integrations.voice.speech import GeminiSpeech, GeminiSTT, GeminiTTS
 from backend.settings import Settings
@@ -77,6 +77,16 @@ class InterviewAgent(Agent):
         self.interrupted = False
         self.spoken_prompt: str | None = None
         self.last_command = 0.0
+        self.opening_audio: tts.ChunkedStream | None = None
+        self.opening_prompt: str | None = None
+
+    async def prepare_opening(self, provider: GeminiTTS) -> None:
+        """Start cloud synthesis while the worker and browser connect."""
+        state = await self.backend.state()
+        prompt = state.get("current_prompt")
+        if prompt and state["status"] not in {"completed", "failed"}:
+            self.opening_prompt = prompt["id"]
+            self.opening_audio = provider.synthesize(prompt["text"])
 
     def spawn(self, coroutine: Any) -> None:
         task = asyncio.create_task(coroutine)
@@ -103,12 +113,21 @@ class InterviewAgent(Agent):
     async def on_enter(self) -> None:
         self.state = await self.backend.state()
         prompt = self.state.get("current_prompt")
-        if prompt:
+        if prompt and self.state["status"] == "active":
             self.spoken_prompt = prompt["id"]
-            await self.session.say(
-                "Welcome. Take your time, and feel free to ask me to repeat or clarify a question. "
-                + prompt["text"]
-            )
+            if self.opening_audio and self.opening_prompt == prompt["id"]:
+                stream = self.opening_audio
+
+                async def frames() -> Any:
+                    try:
+                        async for chunk in stream:
+                            yield chunk.frame
+                    finally:
+                        await stream.aclose()
+
+                await self.session.say(prompt["text"], audio=frames())
+            else:
+                await self.session.say(prompt["text"])
 
     async def llm_node(self, chat_ctx: llm.ChatContext, tools: Any, model_settings: Any) -> Any:
         messages = [
@@ -200,9 +219,10 @@ def main() -> None:
         backend = await asyncio.to_thread(Backend, settings, session_id)
         agent = InterviewAgent(backend, ctx.room)
         speech = await asyncio.to_thread(GeminiSpeech, settings)
+        provider = GeminiTTS(speech)
         session: AgentSession[Any] = AgentSession(
             stt=GeminiSTT(speech),
-            tts=GeminiTTS(speech),
+            tts=provider,
             vad=None,
             turn_handling={
                 "turn_detection": "stt",
@@ -332,7 +352,9 @@ def main() -> None:
                 log.info("endpoint_seconds=%.3f", metric.end_of_utterance_delay)
 
         try:
-            await ctx.connect()
+            async with asyncio.TaskGroup() as startup:
+                startup.create_task(ctx.connect())
+                startup.create_task(agent.prepare_opening(provider))
             await backend.event("ready")
             await ctx.wait_for_participant(identity="candidate-" + session_id)
             agent.state = await backend.event("joined")
@@ -356,6 +378,8 @@ def main() -> None:
                 task.cancel()
             await asyncio.gather(*agent.tasks, return_exceptions=True)
             await session.aclose()
+            if agent.opening_audio:
+                await agent.opening_audio.aclose()
             await speech.close()
             await backend.client.aclose()
 

@@ -7,9 +7,11 @@ from contextlib import contextmanager
 from typing import Protocol
 from uuid import uuid4
 
-from backend.common.errors import Conflict, InvalidInput
+from backend.common.errors import Conflict, InvalidInput, Unavailable
+from backend.integrations.llm.structured_generation import StructuredGeneration
 from backend.modules.pre_interview.preparation.service import PreparationService
 
+from .analysis import ANALYSIS_INSTRUCTION, InterviewAnalysis
 from .assessment import AnswerAssessment
 from .models import AgentEvent, AnswerResult, AnswerTurn, PublicSession, SessionState, TurnInput
 from .reasoning import Reasoner
@@ -32,11 +34,41 @@ class LiveInterviewService:
         clock: Callable[[], float] = time.time,
         timeout: float = 8,
         history: HistoryStore | None = None,
+        analysis_generator: StructuredGeneration | None = None,
     ):
         self._sessions, self._preparation = sessions, preparation
         self._clock, self._history = clock, history
         self._assessment = AnswerAssessment(reasoner, timeout)
         self._tasks: dict[str, asyncio.Task[object]] = {}
+        self._analysis_generator = analysis_generator
+        self._analyses: dict[str, InterviewAnalysis] = {}
+        self._analysis_locks: dict[str, asyncio.Lock] = {}
+
+    async def analyze(self, session_id: str) -> InterviewAnalysis:
+        history = self.history(session_id)
+        session = history.get("session", {})
+        if not isinstance(session, dict) or session.get("status") not in {"completed", "failed"}:
+            raise Conflict("End the interview before viewing its analysis.")
+        events = history.get("events", [])
+        transcript = [
+            event for event in events if isinstance(event, dict)
+            and event.get("kind") in {"question", "candidate", "answer"}
+        ] if isinstance(events, list) else []
+        if not any(
+            event.get("kind") in {"candidate", "answer"} and str(event.get("text", "")).strip()
+            for event in transcript
+        ):
+            raise InvalidInput("No candidate answers were saved for analysis.")
+        if self._analysis_generator is None:
+            raise Unavailable("Interview analysis is temporarily unavailable.")
+        async with self._analysis_locks.setdefault(session_id, asyncio.Lock()):
+            if session_id not in self._analyses:
+                self._analyses[session_id] = await self._analysis_generator.generate(
+                    ANALYSIS_INSTRUCTION,
+                    {"session": session, "transcript": transcript},
+                    InterviewAnalysis,
+                )
+            return self._analyses[session_id]
 
     def _save(self, state: SessionState) -> None:
         if state.status in {"completed", "failed"} and state.ended_at is None:

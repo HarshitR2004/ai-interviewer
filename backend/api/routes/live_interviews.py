@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from backend.api.dependencies import live_service, services
 from backend.bootstrap import Services
 from backend.common.errors import Conflict, Unavailable
+from backend.modules.live_interviews.analysis import InterviewAnalysis
 from backend.modules.live_interviews.models import (
     AgentEvent,
     AnswerResult,
@@ -56,6 +57,11 @@ async def end(session_id: str, service: Live, container: Container) -> PublicSes
 @router.get("/{session_id}/history")
 async def history(session_id: str, service: Live) -> dict[str, object]:
     return service.history(session_id)
+
+
+@router.post("/{session_id}/analysis", response_model=InterviewAnalysis)
+async def analysis(session_id: str, service: Live) -> InterviewAnalysis:
+    return await service.analyze(session_id)
 
 
 @router.get("/{session_id}/agent", dependencies=[Depends(agent_only)])

@@ -1,10 +1,47 @@
 import asyncio
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock, PropertyMock
 
 import pytest
-from livekit.agents import llm
+from livekit.agents import Agent, llm
 
 from backend.voice_agent import InterviewAgent
+
+
+async def test_opening_starts_early_and_reuses_audio(monkeypatch):
+    agent = InterviewAgent(Backend(), SimpleNamespace())
+    frame = object()
+
+    class Stream:
+        aclose = AsyncMock()
+
+        def __aiter__(self):
+            return self.frames()
+
+        async def frames(self):
+            yield SimpleNamespace(frame=frame)
+
+    stream = Stream()
+    provider = SimpleNamespace(synthesize=Mock(return_value=stream))
+    await agent.prepare_opening(provider)
+    provider.synthesize.assert_called_once_with("Question")
+    playback = SimpleNamespace(say=AsyncMock())
+    monkeypatch.setattr(Agent, "session", PropertyMock(return_value=playback))
+    await agent.on_enter()
+    assert playback.say.call_args.args == ("Question",)
+    assert "audio" in playback.say.call_args.kwargs
+    assert [item async for item in playback.say.call_args.kwargs["audio"]] == [frame]
+    stream.aclose.assert_awaited_once()
+
+
+async def test_opening_does_not_replay_stale_audio(monkeypatch):
+    agent = InterviewAgent(Backend(), SimpleNamespace())
+    agent.opening_prompt = "previous"
+    agent.opening_audio = SimpleNamespace()
+    playback = SimpleNamespace(say=AsyncMock())
+    monkeypatch.setattr(Agent, "session", PropertyMock(return_value=playback))
+    await agent.on_enter()
+    playback.say.assert_awaited_once_with("Question")
 
 
 class Backend:

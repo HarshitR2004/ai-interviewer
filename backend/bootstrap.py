@@ -55,6 +55,7 @@ def build_services(settings: Settings) -> Services:
         ModelReasoner(live_client, timeout=settings.live_reasoning_timeout_sec),
         timeout=settings.live_reasoning_timeout_sec,
         history=JsonHistoryStore(settings.data_dir / "demo/interviews"),
+        analysis_generator=StructuredGeneration(live_client),
     )
     return Services(
         preparation=preparation, live=live, voice=VoiceRooms(settings), model=client,
