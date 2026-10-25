@@ -40,7 +40,7 @@ class GeminiSpeech:
         # Omit mime_type: the preview rejects explicit audio/l16 but streams PCM by default.
         stream = await self.interactions.create(
             model=self.tts_model,
-            input="Synthesize speech. Read only the following transcript, exactly as written:\n" + text,
+            input=text,
             response_format={"type": "audio"},
             generation_config={"speech_config": [{"voice": self.voice}]},
             stream=True,

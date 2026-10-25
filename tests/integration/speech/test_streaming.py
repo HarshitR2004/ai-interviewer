@@ -1,11 +1,46 @@
 import asyncio
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from livekit.agents import APIConnectOptions, APIError, stt
 from livekit.agents.types import DEFAULT_API_CONNECT_OPTIONS
 
-from backend.integrations.voice.speech import GeminiStream, GeminiSTT, GeminiTTS
+from backend.integrations.voice.speech import GeminiSpeech, GeminiStream, GeminiSTT, GeminiTTS
+
+
+async def test_flash_lite_sends_verbatim_text_and_streams_pcm():
+    class Events:
+        def __aiter__(self):
+            return self.events()
+
+        async def events(self):
+            yield SimpleNamespace(
+                event_type="step.delta",
+                delta=SimpleNamespace(type="audio", mime_type="audio/l16", data="AAA="),
+            )
+
+        aclose = AsyncMock()
+        close = AsyncMock()
+
+    events = Events()
+    create = AsyncMock(return_value=events)
+    speech = GeminiSpeech(
+        SimpleNamespace(
+            llm_api_key=True, gemini_stt_model="transcription",
+            gemini_tts_model="gemini-3.8-flash-lite-tts", gemini_tts_voice="Kore",
+        ),
+        client=SimpleNamespace(aio=SimpleNamespace(interactions=SimpleNamespace(create=create))),
+    )
+    assert [chunk async for chunk in speech.audio("Please introduce yourself.")] == [b"\0\0"]
+    assert create.call_args.kwargs == {
+        "model": "gemini-3.8-flash-lite-tts",
+        "input": "Please introduce yourself.",
+        "response_format": {"type": "audio"},
+        "generation_config": {"speech_config": [{"voice": "Kore"}]},
+        "stream": True,
+    }
+    events.close.assert_awaited_once()
 
 
 class Speech:

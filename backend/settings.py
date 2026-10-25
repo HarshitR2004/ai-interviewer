@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     agent_secret: SecretStr = SecretStr("local-interview-agent-change-me")
     backend_url: str = "http://127.0.0.1:8000"
     gemini_stt_model: str = "gemini-3.5-transcribe-live"
-    gemini_tts_model: str = "gemini-3.1-flash-tts-preview"
+    gemini_tts_model: str = "gemini-3.8-flash-lite-tts"
     gemini_tts_voice: str = "Kore"
     live_llm_model: str | None = None
     min_endpoint_delay: float = Field(default=0, ge=0, le=5)
