@@ -17,7 +17,7 @@ flowchart TD
     I --> J[Request interview analysis and practice suggestions]
 ```
 
-The job description comes from `sample_data/job_description.txt` and is read-only in the browser. The plan uses the resume, role requirements, seniority, and selected duration. Longer sessions add scenarios and behavioral questions. Introduction and closing collect context without scoring.
+The plan uses the resume, role requirements, seniority, and selected duration. Longer sessions add scenarios and behavioral questions. Introduction and closing collect context without scoring.
 
 ## AI agent architecture
 
@@ -52,7 +52,7 @@ flowchart TD
 
 Preparation uses `LLM_MODEL`; live assessment and post-interview analysis use `LIVE_LLM_MODEL`, falling back to `LLM_MODEL`. Follow-ups are limited to two per question and respect section and interview time budgets. Finalized turns use identifiers to prevent duplicate processing. The LiveKit worker handles speech and forwards answers to FastAPI rather than running a separate conversational model.
 
-Preparation artifacts are stored under `data/demo/candidates/`; conversation history is stored under `data/demo/interviews/`. Active sessions live in memory, so restarting the backend or worker requires a new interview. The demo supports one candidate at a time.
+Active sessions live in memory, so restarting the backend or worker requires a new interview. The app supports one candidate at a time.
 
 ## Voice architecture
 
@@ -97,26 +97,39 @@ Requires Windows PowerShell, Python 3.12+, Node.js 22.22+, internet access, and 
    Copy-Item .env.example .env
    ```
 
-   Set `GEMINI_API_KEY` in `.env` and check the configured text, transcription, and TTS model names. Ensure `sample_data/job_description.txt` contains the job posting.
+   Set `GEMINI_API_KEY` in `.env` and check the configured text, transcription, and TTS model names.
 
-2. Install dependencies and the local LiveKit server, and check hosted speech access:
-
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File scripts/setup-demo.ps1
-   ```
-
-   Setup preserves an existing `.env`. Its speech check makes small paid Gemini requests.
-
-3. Start the app:
+2. Install dependencies and check hosted speech access:
 
    ```powershell
-   powershell -ExecutionPolicy Bypass -File scripts/start-demo.ps1 -OpenBrowser
+   python -m venv work/speech-venv
+   work/speech-venv/Scripts/python.exe -m pip install -r requirements-lock.txt
+   work/speech-venv/Scripts/python.exe -m pip install --no-deps -e ".[voice,test]"
+   powershell -ExecutionPolicy Bypass -File scripts/setup-livekit.ps1
+   work/speech-venv/Scripts/python.exe scripts/setup_speech.py
+   npm --prefix frontend ci
    ```
 
-   Open [localhost:5173](http://127.0.0.1:5173). The launcher runs Next.js, FastAPI on port 8000, LiveKit, and the voice worker. Upload a resume, pass the microphone check, prepare, and join. Use headphones to reduce echo.
+   The speech check makes small paid Gemini requests.
 
-Keep the launcher terminal open; press Ctrl+C to stop its services. To stop them from another terminal:
+3. Run each service in a separate PowerShell terminal from the project root:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/start-demo.ps1 -Action Stop
-```
+   ```powershell
+   work/livekit/livekit-server.exe --dev --bind 127.0.0.1
+   ```
+
+   ```powershell
+   work/speech-venv/Scripts/python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+   ```
+
+   ```powershell
+   work/speech-venv/Scripts/python.exe -m backend.voice_agent dev --no-reload --log-level info
+   ```
+
+   ```powershell
+   npm --prefix frontend run dev
+   ```
+
+   Open [localhost:5173](http://127.0.0.1:5173). Upload a resume, pass the microphone check, prepare, and join. Use headphones to reduce echo.
+
+Keep the service terminals open; press Ctrl+C in each to stop the app.
