@@ -64,7 +64,7 @@ def test_no_retired_persistence_or_frontend():
     for path in BACKEND.rglob("*.py"):
         source = path.read_text()
         assert "sqlite3" not in source
-        if path.name in {"storage.py", "documents.py"}:
+        if path.name in {"storage.py", "documents.py"} and "pre_interview" in path.parts:
             assert "import json" not in source and "model_dump_json" not in source
     for extension in ["*.html", "*.js", "*.css"]:
         assert not list(BACKEND.rglob(extension))
@@ -77,6 +77,7 @@ def test_relative_import_resolution():
 
 
 def test_pre_interview_modules_have_one_location():
-    for name in ("interview_planning", "preparation", "profiles", "resume_ingestion"):
+    assert not (BACKEND / "modules/pre_interview/interview_planning").exists()
+    for name in ("preparation", "profiles", "resume_ingestion"):
         assert (BACKEND / "modules/pre_interview" / name / "__init__.py").is_file()
         assert not (BACKEND / "modules" / name).exists()

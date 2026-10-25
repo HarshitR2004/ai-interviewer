@@ -1,8 +1,11 @@
 """Pure in-memory interview rules; time and prompt IDs are provided by the caller."""
 
+from backend.common.errors import Conflict
 from backend.modules.pre_interview.preparation.models import Preparation
 
 from .models import Decision, Evidence, Prompt, SessionState, TransitionExplanation
+
+MAX_FOLLOW_UPS = 2
 
 
 def new_session(
@@ -13,7 +16,7 @@ def new_session(
         session_id=session_id,
         preparation=preparation.model_copy(deep=True),
         section_started_at=now,
-        deadline_at=now + preparation.settings.duration * 60,
+        deadline_at=0,
         current_prompt=Prompt(
             id=prompt_id,
             question_id="s1q1",
@@ -26,13 +29,29 @@ def close(state: SessionState) -> None:
     # Mark completion and remove the prompt that would otherwise accept answers.
     state.status = "completed"
     state.current_prompt = None
+    state.revision += 1
+    state.pending_turn = None
+
+
+def expire(state: SessionState, now: float) -> None:
+    if state.status == "active" and now >= state.deadline_at:
+        close(state)
+        state.completion_reason = "deadline_expired"
+    elif state.disconnected_at is not None and now - state.disconnected_at >= 30:
+        close(state)
+        state.completion_reason = "disconnected"
+
+
+def require_prompt(state: SessionState, prompt_id: str, now: float) -> None:
+    expire(state, now)
+    if state.status != "active":
+        raise Conflict("Interview is no longer accepting answers.")
+    if state.current_prompt is None or state.current_prompt.id != prompt_id:
+        raise Conflict("This prompt is no longer current.")
 
 
 def fallback(state: SessionState) -> Decision:
-    # Use an unused prepared follow-up, or advance when assessment is unavailable.
-    for text in state.question.follow_ups:
-        if text not in state.used_prepared_followups and state.follow_up_count < 2:
-            return Decision(action="follow_up", next_question=text)
+    # Without assessment, do not blindly probe an answer that may already be sufficient.
     return Decision(action="advance")
 
 
@@ -42,6 +61,8 @@ def transition(
     # Apply time and follow-up limits to the proposed action, then record the outcome.
     action = decision.action
     reason = "model_approved" if available else "assessment_fallback"
+    if not state.section.scored and decision.intent == "answer":
+        action, reason = "advance", "context_complete"
     if now >= state.deadline_at:
         action, reason = "finish", "deadline_expired"
     elif (
@@ -49,10 +70,10 @@ def transition(
         and now >= state.section_started_at + state.section.minutes * 60
     ):
         action, reason = "advance", "section_expired"
-    elif action in {"clarify", "follow_up"} and state.follow_up_count >= 2:
+    elif action in {"clarify", "follow_up"} and state.follow_up_count >= MAX_FOLLOW_UPS:
         action, reason = "advance", "follow_up_limit_reached"
     # Fallback questions keep the interview moving but must not create assessment evidence.
-    if available:
+    if available and state.section.scored:
         state.evidence.append(
             Evidence(
                 question_id=state.question_id,

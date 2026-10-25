@@ -1,11 +1,12 @@
 from uuid import uuid4
 
 from backend.common.errors import Conflict
-from backend.modules.pre_interview.interview_planning.service import InterviewService
+from backend.modules.pre_interview.profiles.models import CandidateProfile
 from backend.modules.pre_interview.profiles.service import ProfileService
 from backend.modules.pre_interview.resume_ingestion.pdf_extractor import PdfExtractor, ResumeUpload
 
 from .models import Preparation, PreparationInputs
+from .planning import InterviewPlanner
 from .ports import PreparationStore
 
 
@@ -14,7 +15,7 @@ class PreparationService:
         self,
         store: PreparationStore,
         profiles: ProfileService,
-        interviews: InterviewService,
+        interviews: InterviewPlanner,
         ingestion: PdfExtractor,
     ):
         self._store, self._profiles = store, profiles
@@ -25,14 +26,7 @@ class PreparationService:
         # Extract the resume, generate both artifacts, and persist before reporting success.
         text = await self._ingestion.ingest(upload)
         profile = await self._profiles.create(text)
-        plan = await self._interviews.create(profile, inputs.job_description, inputs.settings)
-        result = Preparation(
-            candidate_id=uuid4().hex,
-            profile=profile,
-            plan=plan,
-            settings=inputs.settings,
-            job_description=inputs.job_description,
-        )
+        result = await self._prepare(uuid4().hex, profile, inputs)
         await self._store.create(result, upload.content)
         return result
 
@@ -49,17 +43,20 @@ class PreparationService:
         self._busy.add(candidate_id)
         try:
             current = await self._store.load(candidate_id)
-            plan = await self._interviews.create(
-                current.profile, inputs.job_description, inputs.settings
-            )
-            result = Preparation(
-                candidate_id=candidate_id,
-                profile=current.profile,
-                plan=plan,
-                settings=inputs.settings,
-                job_description=inputs.job_description,
-            )
+            result = await self._prepare(candidate_id, current.profile, inputs)
             await self._store.replace_plan(result)
             return result
         finally:
             self._busy.remove(candidate_id)
+
+    async def _prepare(
+        self, candidate_id: str, profile: CandidateProfile, inputs: PreparationInputs
+    ) -> Preparation:
+        plan = await self._interviews.create(profile, inputs.job_description, inputs.settings)
+        return Preparation(
+            candidate_id=candidate_id,
+            profile=profile,
+            plan=plan,
+            settings=inputs.settings,
+            job_description=inputs.job_description,
+        )

@@ -17,6 +17,14 @@ def test_required_llm_configuration(monkeypatch):
         Settings(_env_file=None)
 
 
+def test_gemini_key_configuration(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "private-google-key")
+    monkeypatch.setenv("LLM_API_KEY", "obsolete-key")
+    settings = config()
+    assert settings.llm_api_key.get_secret_value() == "private-google-key"
+    assert "private-google-key" not in repr(settings)
+
+
 @pytest.mark.parametrize(
     "url",
     [
@@ -30,15 +38,13 @@ def test_required_llm_configuration(monkeypatch):
 )
 def test_invalid_endpoints(url):
     with pytest.raises(ValidationError):
-        config(stt_base_url=url)
+        config(backend_url=url)
 
 
-def test_independent_speech_endpoints_and_secret_values():
-    settings = config(
-        speech_enabled=True, stt_base_url="https://stt.example/api/", stt_api_key="private-stt-key"
-    )
-    assert settings.stt_base_url == "https://stt.example/api"
-    assert settings.tts_base_url is None
-    assert "private-stt-key" not in repr(settings)
+def test_voice_defaults_and_secret_values():
+    settings = config(agent_secret="private-value")
+    assert settings.live_reasoning_timeout_sec == 8
+    assert settings.min_endpoint_delay == 0
+    assert "private-value" not in repr(settings)
     with pytest.raises(ValidationError):
-        config(speech_enabled=True)
+        config(min_endpoint_delay=4, max_endpoint_delay=3)

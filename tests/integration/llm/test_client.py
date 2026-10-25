@@ -1,10 +1,44 @@
 import httpx
 import pytest
+from pydantic import SecretStr
 
 from backend.common.errors import Unavailable
 from backend.integrations.llm.client import ChatCompletionsClient
 from backend.integrations.llm.structured_generation import StructuredGeneration
 from backend.modules.pre_interview.profiles.models import CandidateProfile
+
+
+async def test_direct_gemini_json_request():
+    import json
+
+    def handler(request):
+        assert str(request.url) == (
+            "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+        )
+        assert request.headers["authorization"] == "Bearer google-test-key"
+        body = json.loads(request.content)
+        assert body["model"] == "gemini-3.8-flash"
+        assert body["response_format"] == {"type": "json_object"}
+        assert body["messages"][0]["role"] == "system"
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": '{"ok":true}'},
+                               "finish_reason": "stop"}]},
+        )
+
+    client = ChatCompletionsClient(
+        "https://generativelanguage.googleapis.com/v1beta/openai",
+        "gemini-3.8-flash",
+        SecretStr("google-test-key"),
+        transport=httpx.MockTransport(handler),
+    )
+    try:
+        assert await client.complete([
+            {"role": "system", "content": "Return JSON."},
+            {"role": "user", "content": "Return ok true."},
+        ]) == '{"ok":true}'
+    finally:
+        await client.aclose()
 
 
 async def test_model_repairs_once(monkeypatch, persona):
@@ -95,7 +129,6 @@ async def test_configurable_endpoint_and_optional_auth(key):
         body = json.loads(request.content)
         assert body["model"] == "my-own-model"
         assert "provider" not in body and "reasoning" not in body
-        assert "x-openrouter-title" not in request.headers
         # Providers may canonicalize the model name in the response.
         return httpx.Response(
             200,

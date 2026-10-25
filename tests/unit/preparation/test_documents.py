@@ -1,13 +1,13 @@
 import pytest
 
 from backend.common.markdown import DocumentFormatError
-from backend.modules.pre_interview.interview_planning.models import InterviewSettings
 from backend.modules.pre_interview.preparation.documents import (
     parse_plan,
     parse_profile,
     render_plan,
     render_profile,
 )
+from backend.modules.pre_interview.preparation.models import InterviewSettings
 from tests.factories import preparation
 
 
@@ -105,3 +105,13 @@ def test_bad_plan_documents_are_rejected(persona, plan, change):
 
 def test_crlf_document_line_endings_are_supported(persona):
     assert parse_profile(render_profile(persona).replace("\n", "\r\n")) == persona
+
+
+def test_saved_plans_without_conversation_metadata_still_load(persona, plan):
+    import re
+
+    document = render_plan(plan, InterviewSettings(), "job description")
+    document = re.sub(r"## Plan Version\n\n> 1\n\n", "", document)
+    document = re.sub(r"#### Question Type\n\n> fundamentals\n\n", "", document)
+    document = document.replace("#### Covered Competencies\n\nNo entries.\n\n", "")
+    assert parse_plan(document, persona)[0] == plan

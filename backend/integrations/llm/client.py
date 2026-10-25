@@ -18,8 +18,10 @@ class ChatCompletionsClient:
         api_key: SecretStr | str | None = None,
         *,
         transport: httpx.AsyncBaseTransport | None = None,
+        reasoning_effort: str | None = None,
     ):
         secret = api_key.get_secret_value() if isinstance(api_key, SecretStr) else api_key
+        self.reasoning_effort = reasoning_effort
         self.model = model
         self._client = httpx.AsyncClient(
             base_url=base_url.rstrip("/") + "/",
@@ -44,6 +46,7 @@ class ChatCompletionsClient:
                 "chat/completions",
                 timeout=httpx.Timeout(timeout, connect=min(timeout, 10)),
                 json={
+                    **({"reasoning_effort": self.reasoning_effort} if self.reasoning_effort else {}),
                     "model": self.model,
                     "messages": messages,
                     "stream": False,

@@ -38,3 +38,6 @@ coverage.xml
 
 sample_data/
 docs/
+node_modules/
+*.tsbuildinfo
+.next/

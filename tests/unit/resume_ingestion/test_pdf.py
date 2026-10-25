@@ -6,7 +6,6 @@ from pypdf import PdfWriter
 from backend.common.errors import InvalidInput
 from backend.modules.pre_interview.resume_ingestion.pdf_extractor import PdfExtractor
 
-
 extractor = PdfExtractor()
 
 

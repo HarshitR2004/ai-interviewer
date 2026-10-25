@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -17,9 +18,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if services is None:
         services = build_services(Settings.model_validate({}))
     app.state.services = services
+
+    async def cleanup() -> None:
+        while True:
+            await asyncio.sleep(1)
+            ended = services.live.expire_sessions()
+            if services.voice:
+                for session_id in ended:
+                    await services.voice.release(session_id)
+
+    task = asyncio.create_task(cleanup())
     try:
         yield
     finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
         await services.aclose()
 
 

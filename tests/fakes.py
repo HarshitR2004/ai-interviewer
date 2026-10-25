@@ -1,4 +1,4 @@
-from backend.modules.pre_interview.interview_planning.models import RoleRequirements
+from backend.modules.pre_interview.preparation.models import RoleRequirements
 from backend.modules.pre_interview.profiles.models import CandidateProfile
 
 
@@ -30,6 +30,17 @@ class FakeModel:
             section["competency"] = get_args(
                 field.annotation.model_fields["competency"].annotation
             )[0]
+            kind = get_args(field.annotation.model_fields["kind"].annotation)[0]
+            section["kind"] = kind
+            section["covered_competencies"] = (
+                self.plan.required_competencies if kind not in {"introduction", "closing"} else []
+            )
+            question = section["questions"][0]
+            question["question"] = f"Tell me about {kind.replace('_', ' ')} topic {index + 1}."
+            if kind not in {"project_overview", "project_detail"}:
+                question["project_id"] = None
+            if kind in {"introduction", "closing"}:
+                question.update(scoring_guidance=None, strong_answer_signals=[], follow_ups=[])
             sections[key] = section
         result = schema.model_validate({"role": self.plan.role, "sections": sections})
         if check:
@@ -66,24 +77,8 @@ class BlockingReasoner(FakeReasoner):
         return Decision(action=self.action, next_question="Explain your reasoning more clearly.")
 
 
-class FakeSpeech:
-    def __init__(self):
-        self.calls = 0
-
-    async def transcribe(self, content):
-        from backend.integrations.speech.contracts import Transcript
-
-        self.calls += 1
-        return Transcript(text="Use a unique database constraint and a transaction.")
-
-    async def synthesize(self, text):
-        from tests.factories import wav_bytes
-
-        return wav_bytes()
-
-
 def make_preparation(store, model):
-    from backend.modules.pre_interview.interview_planning.service import InterviewService
+    from backend.modules.pre_interview.preparation.planning import InterviewPlanner
     from backend.modules.pre_interview.preparation.service import PreparationService
     from backend.modules.pre_interview.profiles.service import ProfileService
     from backend.modules.pre_interview.resume_ingestion.pdf_extractor import PdfExtractor
@@ -91,7 +86,7 @@ def make_preparation(store, model):
     return PreparationService(
         store,
         ProfileService(model),
-        InterviewService(model),
+        InterviewPlanner(model),
         PdfExtractor(),
     )
 

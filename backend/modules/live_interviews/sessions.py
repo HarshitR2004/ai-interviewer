@@ -14,6 +14,12 @@ class SessionRegistry:
     def add(self, state: SessionState) -> None:
         self._sessions[state.session_id] = state
 
+    def ids(self) -> list[str]:
+        return list(self._sessions)
+
+    def has_open(self) -> bool:
+        return any(s.status in {"waiting", "active"} for s in self._sessions.values())
+
     @contextmanager
     def operation(self, session_id: str) -> Iterator[SessionState]:
         # Reject overlapping operations and release session ownership even on cancellation.

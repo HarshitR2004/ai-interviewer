@@ -1,10 +1,9 @@
 from io import BytesIO
-from pathlib import Path
 
 from pypdf import PdfWriter
 from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
-from backend.modules.pre_interview.interview_planning.models import InterviewPlan, Question, Section
+from backend.modules.pre_interview.preparation.models import InterviewPlan, Question, Section
 from backend.modules.pre_interview.profiles.models import CandidateProfile, Project
 
 
@@ -22,7 +21,7 @@ def resume_pdf():
         {NameObject("/Font"): DictionaryObject({NameObject("/F1"): font})}
     )
     stream = DecodedStreamObject()
-    text = (Path(__file__).resolve().parents[1] / "sample_data/resume.txt").read_text()
+    text = "Example Candidate\nPython backend developer\nBooking API: Built a Python API using PostgreSQL."
     text = text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
     lines = text.splitlines()
     commands = " ".join(f"({line}) Tj 0 -16 Td" for line in lines)
@@ -89,22 +88,8 @@ def plan():
     )
 
 
-def wav_bytes():
-    import io
-    import wave
-
-    buffer = io.BytesIO()
-    with wave.open(buffer, "wb") as writer:
-        writer.setnchannels(1)
-        writer.setsampwidth(2)
-        writer.setframerate(16000)
-        writer.writeframes(b"\x00\x00" * 1600)
-    return buffer.getvalue()
-
-
 def preparation(profile=None, interview=None, candidate_id="a" * 32):
-    from backend.modules.pre_interview.interview_planning.models import InterviewSettings
-    from backend.modules.pre_interview.preparation.models import Preparation
+    from backend.modules.pre_interview.preparation.models import InterviewSettings, Preparation
 
     return Preparation(
         candidate_id=candidate_id,
